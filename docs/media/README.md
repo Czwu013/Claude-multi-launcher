@@ -10,3 +10,7 @@
 录制方式：Playwright + Edge 操作 `ui/index.html`，使用示例名称和全 mock 接口响应。创建 Personal、Work，分别发出启动请求并显示真实 UI 的首次启动提示；末尾用说明卡解释同一程序与不同数据目录。鼠标高亮和字幕为后期添加。
 
 没有打开真实 Claude、创建真实 profile/快捷方式、读取登录数据或录制官方登录。“已启动过”只是启动请求状态，不表示登录成功；实际登录应逐个在官方应用内完成。此动图用于说明操作流程，不作为真实 Claude 多开、隔离或生命周期验收证据。
+
+## User-provided screenshot
+
+`two-claude-windows.png` is the unmodified image supplied by the user on November 9, 2026. It shows two Claude Desktop windows side by side and is embedded in both language versions of the README. It is a screenshot, not a project logo or a new automated test of account isolation.
