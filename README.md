@@ -6,6 +6,12 @@ English | [简体中文](README.zh-CN.md)
 
 Manage Windows desktop profiles for Claude accounts you are authorized to use, such as personal and work accounts. Each profile has its own configured data, configuration, workspace and temporary directories, plus a desktop shortcut. Actual isolation depends on the Claude Desktop version and still needs real-world verification.
 
+## Two windows, side by side
+
+![Two Claude Desktop windows side by side](docs/media/two-claude-windows.png)
+
+*User-provided screenshot of two Claude Desktop windows. The step-by-step demo below uses mock data.*
+
 ## Demo: create and launch two profiles
 
 ![Create and launch Personal and Work profiles](docs/media/clone-demo-en.gif)

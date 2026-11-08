@@ -21,6 +21,12 @@
 - 不写注册表，不改安全设置，不需要管理员权限，仅使用本机回环服务，不调用 Anthropic 远程接口或发送遥测；Claude 本体的联网行为不由本工具控制。
 - 不提供切换第三方 API、规避用量限制、共享或转售账号的功能。请遵守 Anthropic 的使用条款；不得通过账号轮换规避限制、封禁或保护措施；额度规则由 Anthropic 决定，本工具不作额度相互独立的承诺。
 
+## 双窗口运行画面
+
+![两个 Claude Desktop 窗口并排显示](docs/media/two-claude-windows.png)
+
+*用户提供的 Claude Desktop 双窗口截图。下方操作动图使用模拟数据。*
+
 ## 动图：创建并启动两个 profile
 
 ![创建 Personal 和 Work profile 的操作演示](docs/media/clone-demo.gif)
