@@ -1,0 +1,12 @@
+# Demo animations / 操作动图
+
+- `clone-demo-en.gif`: English UI and captions, embedded in README.md.
+- `clone-demo.gif`: Chinese UI and captions, embedded in README.zh-CN.md.
+- Both demonstrate the real launcher HTML with mocked responses and sample data. No real Claude process or login is recorded. Each animation is approximately 29 seconds, 1040×790, and loops.
+
+
+`clone-demo.gif`：约 29 秒，1040×790，循环播放。
+
+录制方式：Playwright + Edge 操作 `ui/index.html`，使用示例名称和全 mock 接口响应。创建 Personal、Work，分别发出启动请求并显示真实 UI 的首次启动提示；末尾用说明卡解释同一程序与不同数据目录。鼠标高亮和字幕为后期添加。
+
+没有打开真实 Claude、创建真实 profile/快捷方式、读取登录数据或录制官方登录。“已启动过”只是启动请求状态，不表示登录成功；实际登录应逐个在官方应用内完成。此动图用于说明操作流程，不作为真实 Claude 多开、隔离或生命周期验收证据。

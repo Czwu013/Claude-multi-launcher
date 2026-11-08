@@ -1,0 +1,14 @@
+{
+  "created": [
+    "Personal",
+    "Work"
+  ],
+  "launchRequests": [
+    "Personal",
+    "Work"
+  ],
+  "pageErrors": [],
+  "realClaudeStarted": false,
+  "authDataRead": false,
+  "mode": "Playwright full mock"
+}

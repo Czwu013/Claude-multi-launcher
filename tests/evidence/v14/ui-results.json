@@ -1,0 +1,163 @@
+{
+  "inventory": [
+    "Personal (Baron) is visible and label fits the name cell",
+    "Empty or absent labels render no parentheses",
+    "Chinese labels and HTML-like text are safely rendered",
+    "Language switch and light/dark themes preserve labels"
+  ],
+  "results": [
+    {
+      "theme": "light",
+      "lang": "zh",
+      "names": [
+        "Personal (Baron)",
+        "Work",
+        "学习 (中文标签)",
+        "Review (<b>Henry</b>)",
+        "Legacy"
+      ],
+      "bounds": [
+        {
+          "text": "Personal (Baron)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Work",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "学习 (中文标签)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Review (<b>Henry</b>)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Legacy",
+          "overflow": false,
+          "tagFits": true
+        }
+      ]
+    },
+    {
+      "theme": "light",
+      "lang": "en",
+      "names": [
+        "Personal (Baron)",
+        "Work",
+        "学习 (中文标签)",
+        "Review (<b>Henry</b>)",
+        "Legacy"
+      ],
+      "bounds": [
+        {
+          "text": "Personal (Baron)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Work",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "学习 (中文标签)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Review (<b>Henry</b>)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Legacy",
+          "overflow": false,
+          "tagFits": true
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "lang": "zh",
+      "names": [
+        "Personal (Baron)",
+        "Work",
+        "学习 (中文标签)",
+        "Review (<b>Henry</b>)",
+        "Legacy"
+      ],
+      "bounds": [
+        {
+          "text": "Personal (Baron)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Work",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "学习 (中文标签)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Review (<b>Henry</b>)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Legacy",
+          "overflow": false,
+          "tagFits": true
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "lang": "en",
+      "names": [
+        "Personal (Baron)",
+        "Work",
+        "学习 (中文标签)",
+        "Review (<b>Henry</b>)",
+        "Legacy"
+      ],
+      "bounds": [
+        {
+          "text": "Personal (Baron)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Work",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "学习 (中文标签)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Review (<b>Henry</b>)",
+          "overflow": false,
+          "tagFits": true
+        },
+        {
+          "text": "Legacy",
+          "overflow": false,
+          "tagFits": true
+        }
+      ]
+    }
+  ],
+  "pageErrors": []
+}

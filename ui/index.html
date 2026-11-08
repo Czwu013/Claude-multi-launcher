@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Multi Launcher</title>
+<style>
+:root {
+  --bg:#0f0e0d; --card:#171615; --line:#2a2826; --text:#efeeea; --muted:#a8a6a0; --dim:#85837d;
+  --chip:#1f1e1c; --btn:#1b1a18; --btn-h:#262422; --btn-line:#34312e; --primary:#e8e4dc; --primary-h:#fff; --primary-t:#1a1917;
+  --warn:#f0a89f; --ok:#7fb88a; --input:#121110; --shadow:0 20px 60px rgba(0,0,0,.45);
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg:#f5f4ee; --card:#fff; --line:#e6e3da; --text:#1f1e1d; --muted:#66655f; --dim:#8e8c85;
+    --chip:#f0eee6; --btn:#fff; --btn-h:#f0eee6; --btn-line:#dad7ce; --primary:#1f1e1d; --primary-h:#000; --primary-t:#f5f4ee;
+    --warn:#b3261e; --ok:#3f8a4f; --input:#faf9f5; --shadow:0 20px 60px rgba(60,50,30,.18);
+  }
+}
+* { box-sizing:border-box; }
+html,body { margin:0; height:100%; overflow:hidden; }
+::-webkit-scrollbar { width:10px; height:10px; } ::-webkit-scrollbar-thumb { background:var(--btn-line); border-radius:8px; border:2px solid transparent; background-clip:content-box; } ::-webkit-scrollbar-thumb:hover { background:var(--dim); background-clip:content-box; } ::-webkit-scrollbar-track { background:transparent; }
+body { background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+.wrap { max-width:1180px; margin:0 auto; padding:30px 40px 18px; height:100vh; display:flex; flex-direction:column; }
+header { flex:none; display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:26px; }
+h1 { margin:0; font-size:26px; font-weight:600; letter-spacing:-.01em; }
+#summary { margin:4px 0 0; color:var(--muted); }
+.actions { display:flex; gap:10px; align-items:center; }
+button { font:inherit; cursor:pointer; border-radius:999px; padding:0 18px; height:36px; border:1px solid var(--btn-line); background:var(--btn); color:var(--text); transition:background .12s; white-space:nowrap; }
+button:hover { background:var(--btn-h); }
+button.primary { background:var(--primary); color:var(--primary-t); border-color:transparent; font-weight:600; }
+button.primary:hover { background:var(--primary-h); }
+button.big { height:42px; padding:0 26px; }
+button.icon { width:36px; padding:0; font-size:18px; line-height:1; letter-spacing:1px; }
+button[disabled] { opacity:.5; cursor:default; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:28px; }
+.list { flex:0 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding:0; }
+.scroll { overflow-y:auto; min-height:0; flex:1; }
+.thead { flex:none; }
+.row, .thead { display:grid; grid-template-columns:24px minmax(150px,1.25fr) 118px 64px minmax(120px,1.4fr) 252px; gap:12px; align-items:center; padding:18px 22px; }
+.thead { color:var(--muted); font-size:13px; padding-top:22px; padding-bottom:14px; border-bottom:1px solid var(--line); }
+.row { border-bottom:1px solid var(--line); }
+.row:last-child { border-bottom:0; }
+.name { overflow-wrap:anywhere; font-size:16px; font-weight:600; }
+.name .tag { font-weight:500; font-size:13px; color:var(--muted); }
+.sub { color:var(--dim); font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+.chip { display:inline-flex; align-items:center; gap:8px; padding:5px 12px; border-radius:999px; border:1px solid var(--line); background:var(--chip); font-size:13px; white-space:nowrap; }
+.dot { width:8px; height:8px; border-radius:50%; background:var(--dim); }
+.dot.ok { background:var(--ok); } .dot.warn { background:var(--warn); }
+.mono { font-family:Consolas,"Cascadia Mono",monospace; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mono.dim { color:var(--dim); margin-top:2px; }
+.muted { color:var(--muted); }
+.ops { display:flex; gap:6px; justify-content:flex-end; position:relative; }
+.ops button { padding:0 13px; }
+.ops button.icon { padding:0; }
+button.danger { color:var(--warn); }
+.drag-handle { width:24px; height:32px; padding:0; border:0; border-radius:8px; display:grid; place-items:center; cursor:grab; touch-action:none; user-select:none; }
+.drag-handle::before { content:""; width:9px; height:9px; border-radius:50%; background:var(--dim); }
+.drag-handle:hover::before, .drag-handle:focus-visible::before { background:var(--text); }
+.drag-handle:focus-visible { outline:2px solid var(--muted); outline-offset:2px; }
+.row.dragging { opacity:.65; background:var(--chip); outline:1px solid var(--btn-line); outline-offset:-1px; }
+body.reordering, body.reordering * { cursor:grabbing !important; user-select:none; }
+.scroll { overscroll-behavior:contain; }
+@media (max-width:1100px) {
+  .row,.thead { grid-template-columns:24px minmax(145px,1fr) 110px 60px minmax(100px,1fr) 246px; gap:8px; padding-left:16px; padding-right:16px; }
+  .wrap { padding-left:24px; padding-right:24px; }
+  .ops button { padding:0 9px; }
+}
+.menu { position:fixed; z-index:60; min-width:170px; background:var(--card); border:1px solid var(--btn-line); border-radius:16px; padding:6px; box-shadow:var(--shadow); }
+.menu button { display:block; width:100%; text-align:left; border:0; background:transparent; border-radius:10px; height:38px; padding:0 12px; }
+.menu button:hover { background:var(--btn-h); }
+.menu button.danger { color:var(--warn); }
+.empty { padding:40px 30px; color:var(--muted); }
+footer { flex:none; margin-top:12px; color:var(--dim); font-size:13px; min-height:20px; }
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:24px; z-index:50; }
+.modal { width:min(620px,100%); max-height:92vh; overflow:auto; padding:28px; background:var(--card); border:1px solid var(--line); border-radius:28px; box-shadow:var(--shadow); }
+.modal.wide { width:min(860px,100%); }
+.modal h2 { margin:0 0 18px; font-size:19px; font-weight:600; }
+.modal p { margin:0 0 14px; color:var(--muted); white-space:pre-wrap; }
+label.f { display:block; color:var(--muted); font-size:13px; margin:0 0 6px; }
+input[type=text] { width:100%; height:40px; padding:0 14px; border-radius:14px; border:1px solid var(--btn-line); background:var(--input); color:var(--text); font:inherit; outline:none; }
+input[type=text]:focus { border-color:var(--muted); }
+.field { margin-bottom:16px; }
+.inline { display:flex; gap:10px; }
+.check { display:flex; align-items:center; gap:10px; margin:4px 0 22px; cursor:pointer; user-select:none; }
+input[type=checkbox] { appearance:none; width:20px; height:20px; border-radius:7px; border:1px solid var(--btn-line); background:var(--input); display:inline-grid; place-content:center; cursor:pointer; margin:0; }
+input[type=checkbox]:checked { background:var(--primary); border-color:var(--primary); }
+input[type=checkbox]:checked::after { content:""; width:5px; height:10px; border:solid var(--primary-t); border-width:0 2px 2px 0; transform:rotate(45deg) translate(-1px,-1px); }
+input[type=checkbox]:disabled { opacity:.45; cursor:default; }
+.foot { display:flex; justify-content:flex-end; gap:10px; margin-top:6px; }
+.scanrow { display:grid; grid-template-columns:24px 190px minmax(0,1fr); gap:14px; align-items:center; padding:14px; border:1px solid var(--line); border-radius:18px; margin-bottom:10px; }
+.scanrow.done { opacity:.6; }
+.scanrow input[type=text] { height:36px; }
+.kv { display:grid; grid-template-columns:110px 1fr; gap:6px 14px; margin-bottom:14px; }
+.kv div:nth-child(odd) { color:var(--muted); }
+.kv div:nth-child(even) { font-family:Consolas,monospace; font-size:12.5px; word-break:break-all; }
+.bad { color:var(--warn); }
+.toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--primary); color:var(--primary-t); padding:10px 20px; border-radius:999px; font-weight:600; z-index:80; box-shadow:var(--shadow); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1 id="title">Claude Multi Launcher</h1><p id="summary"></p></div>
+    <div class="actions">
+      <button id="scanBtn"></button>
+      <button id="langBtn"></button>
+      <button id="newBtn" class="primary big"></button>
+    </div>
+  </header>
+  <section class="card list">
+    <div class="thead"><div id="orderHead"></div><div id="h1"></div><div id="h2"></div><div id="h3"></div><div id="h4"></div><div></div></div>
+    <div class="scroll"><div id="rows"></div>
+    <div id="empty" class="empty" hidden></div></div>
+  </section>
+  <footer id="status"></footer>
+</div>
+<div id="layer"></div>
+<script>
+const token = new URLSearchParams(location.search).get('t') || '';
+let S = { strings:{}, profiles:[], lang:'zh' };
+let savingOrder = false;
+const short = (p) => String(p||'').replace(/^[A-Za-z]:\\Users\\[^\\]+/, '~');
+const $ = (id) => document.getElementById(id);
+const t = (k, ...a) => { let s = S.strings[k] || k; a.forEach((v,i)=>{ s = s.split('{'+i+'}').join(v); }); return s; };
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs||{})) {
+    if (k==='class') e.className=v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v===true) e.setAttribute(k,''); else if (v!==false && v!=null) e.setAttribute(k,v);
+  }
+  kids.flat().forEach(c => { if (c!=null) e.append(c.nodeType ? c : document.createTextNode(String(c))); });
+  return e;
+}
+async function api(name, body) {
+  const r = await fetch('/api/'+name, { method:'POST', headers:{'X-Token':token,'Content-Type':'application/json'}, body:JSON.stringify(body||{}) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'error');
+  return j;
+}
+function toast(msg) { const e = h('div',{class:'toast'},msg); document.body.append(e); setTimeout(()=>e.remove(),2600); }
+async function guard(fn) { try { return await fn(); } catch (e) { showMessage(t('gui.error_title'), e.message, true); } }
+
+function closeLayer() { $('layer').replaceChildren(); }
+function openModal(title, body, wide) {
+  const m = h('div',{class:'modal'+(wide?' wide':'')}, h('h2',{},title), body);
+  const o = h('div',{class:'overlay', onmousedown:(ev)=>{ if (ev.target===o) closeLayer(); }}, m);
+  $('layer').replaceChildren(o);
+  return m;
+}
+function showMessage(title, text, bad) {
+  openModal(title, h('div',{}, h('p',{class:bad?'bad':''},text), h('div',{class:'foot'}, h('button',{class:'primary',onclick:closeLayer},'OK'))));
+}
+
+function render() {
+  document.documentElement.lang = S.lang;
+  document.title = t('gui.title'); $('title').textContent = t('gui.title');
+  $('scanBtn').textContent = t('gui.scan'); $('langBtn').textContent = t('gui.lang'); $('newBtn').textContent = t('gui.new_group');
+  $('orderHead').setAttribute('aria-label',t('gui.col_order'));
+  $('h1').textContent = t('gui.col_name'); $('h2').textContent = t('gui.col_state');
+  $('h3').textContent = t('gui.col_shortcut'); $('h4').textContent = t('gui.col_folders');
+  const ps = S.profiles; const launched = ps.filter(p=>p.launched).length; const bad = ps.filter(p=>p.violations.length).length;
+  $('summary').textContent = t('gui.summary', ps.length, launched, bad);
+  const rows = $('rows'); rows.replaceChildren();
+  $('empty').hidden = ps.length>0; $('empty').textContent = t('gui.empty');
+  for (const p of ps) {
+    let st = t('gui.st_new'), dot = '';
+    if (p.violations.length) { st = t('gui.st_conflict'); dot = 'warn'; } else if (p.launched) { st = t('gui.st_launched'); dot = 'ok'; }
+    const more = h('button',{class:'icon', title:'…'}, '···');
+    const ops = h('div',{class:'ops'},
+      h('button',{class:'primary', onclick:()=>launch(p)}, t('gui.launch')),
+      h('button',{onclick:()=>guard(()=>api('open',{name:p.name}))}, t('gui.open')),
+      more);
+    more.addEventListener('click',(ev)=>{ ev.stopPropagation(); openMenu(more, p); });
+    const handle = h('button',{class:'drag-handle', type:'button', title:t('gui.reorder',p.name), 'aria-label':t('gui.reorder',p.name), disabled:savingOrder});
+    const row = h('div',{class:'row','data-name':p.name}, handle,
+      h('div',{}, h('div',{class:'name'}, p.name, p.shortcutLabel ? h('span',{class:'tag'}, ' ('+p.shortcutLabel+')') : null), h('div',{class:'sub',title:p.workspaceDir},short(p.workspaceDir))),
+      h('div',{}, h('span',{class:'chip'}, h('span',{class:'dot '+dot}), st)),
+      h('div',{class:'mono muted'}, p.hasShortcut ? t('msg.shortcut_yes') : t('msg.shortcut_no')),
+      h('div',{style:'min-width:0'}, h('div',{class:'mono',title:p.dataDir},short(p.dataDir)), h('div',{class:'mono dim',title:p.configDir},short(p.configDir))),
+      ops);
+    rows.append(row);
+    bindReorder(handle,row,p);
+  }
+}
+async function saveOrder(names, focusName) {
+  if (savingOrder) return;
+  savingOrder = true;
+  document.querySelectorAll('.drag-handle').forEach(b=>b.disabled=true);
+  try {
+    await api('reorder',{names});
+    await refresh();
+    toast(t('gui.order_saved'));
+  } catch (e) {
+    try { await refresh(); } catch (_) { render(); }
+    showMessage(t('gui.error_title'),e.message,true);
+  } finally {
+    savingOrder = false;
+    document.querySelectorAll('.drag-handle').forEach(b=>b.disabled=false);
+    const row = [...$('rows').children].find(r=>r.dataset.name===focusName);
+    row?.querySelector('.drag-handle').focus({preventScroll:true});
+  }
+}
+function bindReorder(handle,row,profile) {
+  handle.addEventListener('keydown',e=>{
+    if (savingOrder || !['ArrowUp','ArrowDown'].includes(e.key)) return;
+    e.preventDefault();
+    const names = S.profiles.map(p=>p.name), i = names.indexOf(profile.name);
+    const j = i+(e.key==='ArrowUp'?-1:1);
+    if (j<0||j>=names.length) return;
+    [names[i],names[j]]=[names[j],names[i]];
+    saveOrder(names,profile.name);
+  });
+  handle.addEventListener('pointerdown',e=>{
+    if (savingOrder || e.button!==0) return;
+    e.preventDefault();
+    const rows = $('rows'), scroll = rows.closest('.scroll');
+    const original = [...rows.children].map(r=>r.dataset.name);
+    let active=true, frame=0, pointerY=e.clientY;
+    row.classList.add('dragging'); document.body.classList.add('reordering');
+    handle.focus({preventScroll:true}); rows.setPointerCapture(e.pointerId); // Keep capture on the stable container when rows move.
+    const placeRow = () => {
+      const others = [...rows.children].filter(r=>r!==row);
+      const next = others.find(r=>{ const b=r.getBoundingClientRect(); return pointerY<b.top+b.height/2; });
+      if (next) { if (row.nextElementSibling!==next) rows.insertBefore(row,next); }
+      else if (rows.lastElementChild!==row) rows.append(row);
+    };
+    const tick = () => {
+      if (!active) return;
+      const b=scroll.getBoundingClientRect(), edge=36;
+      if (pointerY<b.top+edge) scroll.scrollTop-=Math.min(16,(b.top+edge-pointerY)/3);
+      else if (pointerY>b.bottom-edge) scroll.scrollTop+=Math.min(16,(pointerY-(b.bottom-edge))/3);
+      placeRow(); frame=requestAnimationFrame(tick);
+    };
+    const move = ev => { if(ev.pointerId!==e.pointerId)return; pointerY=ev.clientY; ev.preventDefault(); };
+    const finish = (ev,cancel=false) => {
+      if (!active || (ev.pointerId!==undefined && ev.pointerId!==e.pointerId)) return;
+      active=false; cancelAnimationFrame(frame);
+      rows.removeEventListener('pointermove',move); rows.removeEventListener('pointerup',up);
+      rows.removeEventListener('pointercancel',cancelled); rows.removeEventListener('lostpointercapture',cancelled);
+      document.removeEventListener('keydown',escape);
+      row.classList.remove('dragging'); document.body.classList.remove('reordering');
+      if (rows.hasPointerCapture(e.pointerId)) rows.releasePointerCapture(e.pointerId);
+      const names=[...rows.children].map(r=>r.dataset.name);
+      if (cancel) { render(); return; }
+      if (names.some((n,i)=>n!==original[i])) saveOrder(names,profile.name);
+    };
+    const up = ev => finish(ev);
+    const cancelled = ev => finish(ev,true);
+    const escape = ev => { if(ev.key==='Escape') finish(ev,true); };
+    rows.addEventListener('pointermove',move); rows.addEventListener('pointerup',up);
+    rows.addEventListener('pointercancel',cancelled); rows.addEventListener('lostpointercapture',cancelled);
+    document.addEventListener('keydown',escape);
+    frame=requestAnimationFrame(tick);
+  });
+}
+function openMenu(btn, p) {
+  document.querySelectorAll('.menu').forEach(m=>m.remove());
+  const item = (label, fn, cls) => h('button',{class:cls||'',onclick:()=>{ menu.remove(); fn(); }}, label);
+  const menu = h('div',{class:'menu'},
+    item(t('gui.paths'), ()=>showPaths(p)),
+    item(t('gui.shortcut'), ()=>guard(async()=>{ await api('shortcut',{name:p.name}); await refresh(); toast(t('gui.shortcut_done',p.name)); })),
+    item(t('gui.remove'), ()=>confirmRemove(p)),
+    item(t('gui.purge'), ()=>showPurge(p), 'danger'));
+  document.body.append(menu);
+  const r = btn.getBoundingClientRect(), mh = menu.offsetHeight;
+  menu.style.right = (innerWidth - r.right) + 'px';
+  menu.style.top = ((r.bottom + 6 + mh > innerHeight) ? Math.max(8, r.top - mh - 6) : (r.bottom + 6)) + 'px';
+}
+document.addEventListener('click',()=>document.querySelectorAll('.menu').forEach(m=>m.remove()));
+document.addEventListener('scroll',()=>document.querySelectorAll('.menu').forEach(m=>m.remove()),true);
+
+async function refresh() { const j = await api('state'); S = { strings:j.strings, profiles:j.profiles, lang:j.lang }; render(); }
+
+function launch(p) { guard(async()=>{
+  const j = await api('launch',{name:p.name});
+  await refresh(); toast(t('gui.launched',p.name));
+  if (j.first) openModal(p.name, h('div',{}, h('p',{},t('msg.first_launch')), h('p',{},t('msg.first_launch_tip')), h('div',{class:'foot'},h('button',{class:'primary',onclick:closeLayer},'OK'))));
+}); }
+function showPaths(p) {
+  const kv = h('div',{class:'kv'},
+    h('div',{},t('item.data')),h('div',{},p.dataDir), h('div',{},t('item.config')),h('div',{},p.configDir),
+    h('div',{},t('item.workspace')),h('div',{},p.workspaceDir), h('div',{},t('item.temp')),h('div',{},p.tempDir));
+  const iso = p.violations.length ? h('div',{class:'bad'}, t('iso.bad'), p.violations.map(v=>h('div',{},'- '+v))) : h('div',{class:'muted'},t('iso.ok'));
+  openModal(p.name, h('div',{}, kv, iso, h('p',{style:'margin-top:14px'},t('msg.shared_note')), h('div',{class:'foot'},h('button',{class:'primary',onclick:closeLayer},'OK'))));
+}
+function confirmRemove(p) {
+  openModal(p.name, h('div',{}, h('p',{},t('gui.confirm_remove',p.name)+'\n\n'+t('gui.confirm_note')),
+    h('div',{class:'foot'}, h('button',{onclick:closeLayer},t('gui.cancel')),
+      h('button',{class:'primary',onclick:()=>guard(async()=>{ await api('remove',{name:p.name}); closeLayer(); await refresh(); })},t('gui.remove')))));
+}
+function showPurge(p) { guard(async()=>{
+  const pl = await api('plan',{name:p.name});
+  const boxes = [];
+  const list = h('div',{});
+  for (const it of pl.items) {
+    const can = it.exists && !it.reason;
+    const chk = h('input',{type:'checkbox', checked:can && it.kind!=='workspaceDir' ? true : (can && it.kind==='workspaceDir'), disabled:!can});
+    boxes.push({it,chk});
+    const note = !it.exists ? t('gui.purge_missing') : (it.reason ? it.reason : it.sizeMB + ' MB');
+    list.append(h('label',{class:'scanrow', style:'grid-template-columns:24px 120px minmax(0,1fr);cursor:'+(can?'pointer':'default')},
+      chk, h('div',{}, it.label),
+      h('div',{style:'min-width:0'}, h('div',{class:'mono',title:it.path},it.path), h('div',{class:'sub'+(it.reason?' bad':'')},note))));
+  }
+  const go = h('button',{class:'primary',disabled:pl.running,onclick:()=>guard(async()=>{
+    const kinds = boxes.filter(b=>b.chk.checked&&!b.chk.disabled).map(b=>b.it.kind);
+    await api('purge',{name:p.name,kinds});
+    closeLayer(); await refresh(); toast(t('gui.purge_done',p.name));
+  })}, t('gui.purge_confirm'));
+  openModal(t('gui.purge_title',p.name), h('div',{},
+    pl.running ? h('p',{class:'bad'},t('gui.purge_running')) : null,
+    h('p',{},t('gui.purge_note')), list,
+    h('div',{class:'foot'}, h('button',{onclick:closeLayer},t('gui.cancel')), go)), true);
+}); }
+function browseInto(input) { guard(async()=>{ const j = await api('browse',{description:t('gui.root_pick')}); if (j.path) input.value = j.path; }); }
+
+function showCreate() {
+  const name = h('input',{type:'text',id:'cname',autocomplete:'off'});
+  const root = h('input',{type:'text',id:'croot',autocomplete:'off'});
+  const sc = h('input',{type:'checkbox',checked:true});
+  const go = () => guard(async()=>{
+    const n = name.value.trim(); if (!n) throw new Error(t('gui.name_empty'));
+    await api('create',{name:n,root:root.value.trim(),shortcut:sc.checked});
+    closeLayer(); await refresh(); toast(t('gui.created',n));
+    openModal(n, h('div',{}, h('p',{},t('gui.created',n)+'\n'+t('gui.created_tip')), h('div',{class:'foot'},h('button',{class:'primary',onclick:closeLayer},'OK'))));
+  });
+  name.addEventListener('keydown',e=>{ if (e.key==='Enter') go(); });
+  openModal(t('gui.new_group'), h('div',{},
+    h('div',{class:'field'}, h('label',{class:'f'},t('gui.name').replace(/[:：]$/,'')), name),
+    h('div',{class:'field'}, h('label',{class:'f'},t('gui.root').replace(/[:：]$/,'')), h('div',{class:'inline'}, root, h('button',{onclick:()=>browseInto(root)},t('gui.browse')))),
+    h('label',{class:'check'}, sc, t('gui.chk_shortcut')),
+    h('div',{class:'foot'}, h('button',{onclick:closeLayer},t('gui.cancel')), h('button',{class:'primary',onclick:go},t('gui.create')))));
+  name.focus();
+}
+
+function showScan() { guard(async()=>{
+  $('scanBtn').disabled = true;
+  let found; try { found = (await api('scan')).clones; } finally { $('scanBtn').disabled = false; }
+  const rows = []; const list = h('div',{});
+  const addRow = (c) => {
+    const chk = h('input',{type:'checkbox',disabled:!!c.registered});
+    const nm = h('input',{type:'text',value:c.name,disabled:!!c.registered});
+    const st = [c.running?t('msg.scan_running'):'', c.registered?t('msg.scan_registered'):''].filter(Boolean).join(' ');
+    const info = h('div',{style:'min-width:0'}, h('div',{class:'mono',title:c.dataDir},c.dataDir), h('div',{class:'sub'}, [c.sources.join(', '),st].filter(Boolean).join('  ')));
+    const el = h('div',{class:'scanrow'+(c.registered?' done':'')}, chk, nm, info);
+    list.append(el); rows.push({c,chk,nm,info,el});
+  };
+  found.forEach(addRow);
+  const hint = h('p',{}, found.length ? t('gui.scan_hint') : t('gui.scan_empty'));
+  const mp = h('input',{type:'text',placeholder:t('gui.manual_pick')});
+  const manual = h('div',{class:'inline',style:'margin:14px 0 4px'}, mp, h('button',{onclick:()=>browseInto(mp)},t('gui.browse')),
+    h('button',{onclick:()=>{ const p = mp.value.trim().replace(/[\\/]+$/,''); if (!p) return;
+      if (rows.some(r=>r.c.dataDir.toLowerCase()===p.toLowerCase())) return;
+      addRow({name:p.split(/[\\/]/).pop(), dataDir:p, configDir:'', sources:[], running:false, registered:false}); rows[rows.length-1].chk.checked = true; mp.value=''; }}, t('gui.add')));
+  const doImport = () => guard(async()=>{
+    const sel = rows.filter(r=>r.chk.checked && !r.chk.disabled);
+    if (!sel.length) return;
+    const j = await api('import',{items:sel.map(r=>({name:r.nm.value.trim(),dataDir:r.c.dataDir,configDir:r.c.configDir}))});
+    let ok=0, bad=0; const errs=[];
+    j.results.forEach((res,i)=>{ if (res.ok) { ok++; const r=sel[i]; r.chk.checked=false; r.chk.disabled=true; r.nm.disabled=true; r.el.classList.add('done'); } else { bad++; errs.push(sel[i].nm.value+': '+res.error); } });
+    await refresh();
+    toast(t('gui.import_done',ok,bad));
+    if (errs.length) showMessage(t('gui.scan_title'), errs.join('\n\n'), true);
+  });
+  openModal(t('gui.scan_title'), h('div',{}, hint, list, manual,
+    h('div',{class:'foot'}, h('button',{onclick:closeLayer},t('gui.close')), h('button',{class:'primary',onclick:doImport},t('gui.import_sel')))), true);
+}); }
+
+$('newBtn').onclick = showCreate; $('scanBtn').onclick = showScan;
+$('langBtn').onclick = () => guard(async()=>{ await api('lang',{value:S.lang==='zh'?'en':'zh'}); await refresh(); });
+document.addEventListener('keydown',e=>{ if (e.key==='Escape') closeLayer(); });
+setInterval(()=>{ api('ping').catch(()=>{}); }, 5000);
+guard(refresh);
+</script>
+</body>
+</html>

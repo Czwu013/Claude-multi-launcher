@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Review panel · 验收面板</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--ink:#1c1c1a;--mute:#6c6a64;--line:#e3e1da;--acc:#2f5fd0;--acc-ink:#fff;--ok:#1d8a4b;--warn:#b26b00;--bad:#c23b2e;--soft:#eef2fc}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151514;--card:#201f1d;--ink:#ecebe5;--mute:#9b988f;--line:#34322e;--acc:#7da3ff;--acc-ink:#0d1220;--ok:#4cc27f;--warn:#e3ab4d;--bad:#ff7d6e;--soft:#1f2535}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;padding-bottom:110px}
+main{max-width:720px;margin:0 auto;padding:20px 16px}
+h1{font-size:1.35rem;margin:4px 0 2px}
+h2{font-size:1rem;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.sub{color:var(--mute);font-size:.9rem;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.run{white-space:pre-wrap;background:var(--soft);border-radius:8px;padding:10px 12px;font-size:.92rem}
+.step{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}
+.step:first-of-type{border-top:0}
+.step input{margin-top:5px;width:18px;height:18px;flex:none}
+.step.done span{color:var(--mute);text-decoration:line-through}
+details{margin-top:6px;color:var(--mute);font-size:.92rem}
+details summary{cursor:pointer;padding:4px 0}
+details ul{margin:4px 0 0;padding-left:20px}
+.pill{display:inline-block;font-size:.75rem;padding:1px 8px;border-radius:99px;background:var(--soft);color:var(--acc)}
+.q{padding:10px 0;border-top:1px solid var(--line)}
+.q:first-of-type{border-top:0}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+button,select,input[type=text],textarea{font:inherit;color:inherit}
+.seg button,.chip{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 14px;cursor:pointer;min-height:40px}
+.seg button.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.seg button.on.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+.seg button.on.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+input[type=text],textarea,select{width:100%;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 10px;margin-top:8px}
+textarea{min-height:64px;resize:vertical}
+.dim{padding:12px 0;border-top:1px solid var(--line)}
+.dim:first-of-type{border-top:0}
+.dim .name{font-weight:600}
+.scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
+.scale button{border:1px solid var(--line);background:var(--card);border-radius:8px;min-height:44px;font-size:1.05rem;cursor:pointer}
+.scale button.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:700}
+.legend{color:var(--mute);font-size:.82rem;margin-bottom:6px}
+.need{color:var(--warn);font-size:.82rem;margin-top:4px;display:none}
+.issue{border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:10px}
+.issue .row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
+.issue .row select{margin-top:0}
+.x{border:0;background:none;color:var(--mute);font-size:1.2rem;cursor:pointer;min-width:40px}
+.add{margin-top:10px;border:1px dashed var(--line);background:none;border-radius:10px;padding:10px;width:100%;cursor:pointer;color:var(--acc)}
+.fast{border:0;background:none;color:var(--acc);cursor:pointer;padding:0;font-size:.85rem}
+.verdict{font-size:1.1rem;font-weight:700}
+.v-通过{color:var(--ok)}.v-小改后过{color:var(--warn)}.v-返工{color:var(--bad)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px}
+.bar .in{max-width:720px;margin:0 auto;display:flex;gap:12px;align-items:center}
+.bar .msg{flex:1;font-size:.88rem;color:var(--mute)}
+.bar button{background:var(--acc);color:var(--acc-ink);border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer;min-height:46px}
+.bar button:disabled{opacity:.4;cursor:not-allowed}
+#preview{font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;min-height:150px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:99px;font-size:.9rem;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<div class="bar"><div class="in"><div class="msg" id="barmsg"></div><button id="copy" disabled>Copy to AI</button></div></div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+// build_panel.py 会把验收卡的数据替换到下面这一行
+var D = /*__DATA__*/null;
+if(!D){document.getElementById('app').textContent='缺少数据 / Missing data: generate this page with build_panel.py.';return;}
+
+// ---- 语言：D.lang 由 build_panel.py 根据验收卡判断（en / zh）。内部逻辑统一用中文规范 token，显示时转换 ----
+var LANG=D.lang==='en'?'en':'zh';
+document.documentElement.lang=LANG==='en'?'en':'zh-CN';
+var TXT={
+ zh:{title:'验收面板',copy:'复制给 AI',h1:function(m,r){return '验收 '+m+' · 第 '+r+' 轮';},
+  intro:'跟着路线体验 → 打分 → 点几个问题 → 复制给 AI。用时通常 3–10 分钟。',route:'体验路线',
+  verified:'AI 已验证（你不用再测）',known:'已知不足（别在这里花时间）',ok:'行',bad:'不行',note:'一句话备注（可不填）',
+  keyq:'请你重点判断',humanonly:'只有人能判断',allok:'全部 ✓',whatwrong:'哪里还不对？',recheckT:'上一轮改过的，看看好了没',recheckB:'复验',
+  scoreT:'打分',legend:'1 不能用 · 2 明显不对 · 3 能接受但不满意 · 4 满意 · 5 惊喜',fast:'都满意（空着的全部打 4 分）',
+  whyDelight:'惊喜在哪？一句话',whyWrong:'哪里不对？一句话',issuesT:'问题',skip:'没有就跳过',del:'删除',what:'现象：哪里不对',want:'想要什么（可不填）',
+  sevLegend:'严重度：高 = 必须改，不改没法继续 · 中 = 该改，影响体验 · 低 = 有空再改',addIssue:'+ 添加一个问题',
+  goodT:'好的地方',goodPh:'喜欢的点也写，AI 会记下来，以后不会改丢',verdictT:'结论',byAdvice:'按建议',changeTo:'我要改成：',
+  whyOverride:'为什么不按建议？（必填）',reviewer:'验收人姓名',preview:'将要复制的内容',previewB:'可预览',
+  sugPrefix:'建议结论：',sugNone:'打完所有维度的分，这里会给出建议结论',
+  REASONS:{'返工':'有维度 ≤2 分，或有高严重度问题','小改后过':'有维度 =3 分，或有中严重度问题。AI 合并改一批，下轮你只复验改过的几条','通过':'全部 ≥4 分，没有中高严重度问题'},
+  mScore:'还有维度没打分',mReason:function(d){return '「'+d+'」请写一句理由';},mOverride:'改结论需要写原因',mName:'填一下验收人',more:function(k){return '（还有 '+k+' 项）';},
+  ready:'可以复制了：',copied:'已复制，粘贴给 AI 即可',manual:'请在下方预览框全选后手动复制'},
+ en:{title:'Review panel',copy:'Copy to AI',h1:function(m,r){return 'Review '+m+' · Round '+r;},
+  intro:'Follow the route → score → flag a few issues → copy to the AI. Usually 3–10 minutes.',route:'Test route',
+  verified:'Verified by AI (no need to retest)',known:"Known shortcomings (don't spend time here)",ok:'OK',bad:'Not OK',note:'One-line note (optional)',
+  keyq:'Key questions for you',humanonly:'human-only judgement',allok:'All ✓',whatwrong:"What's still wrong?",recheckT:'Fixed last round — did it work?',recheckB:'re-check',
+  scoreT:'Scores',legend:'1 Unusable · 2 Clearly wrong · 3 Acceptable but not satisfied · 4 Satisfied · 5 Delighted',fast:'All satisfied (unscored dimensions get 4)',
+  whyDelight:"What's delightful? One line",whyWrong:"What's wrong? One line",issuesT:'Issues',skip:'skip if none',del:'Delete',what:"What happened — what's wrong",want:'What you want (optional)',
+  sevLegend:'Severity: High = must fix, blocks progress · Medium = should fix, hurts the experience · Low = when there is time',addIssue:'+ Add an issue',
+  goodT:"What's good",goodPh:"Write what you like too — the AI will record it so it doesn't get changed away",verdictT:'Verdict',byAdvice:'As suggested',changeTo:'Change to: ',
+  whyOverride:'Why not as suggested? (required)',reviewer:'Reviewer name',preview:'Text that will be copied',previewB:'preview',
+  sugPrefix:'Suggested verdict: ',sugNone:'Score every dimension to get a suggested verdict',
+  REASONS:{'返工':'A dimension scored ≤2, or there is a high-severity issue','小改后过':'A dimension scored 3, or there is a medium-severity issue. The AI batches the fixes; next round you only re-check what changed','通过':'All scores ≥4 and no medium/high issues'},
+  mScore:'Some dimensions are not scored',mReason:function(d){return 'Please give a one-line reason for "'+d+'"';},mOverride:'Changing the verdict needs a reason',mName:'Enter the reviewer name',more:function(k){return ' ('+k+' more)';},
+  ready:'Ready to copy: ',copied:'Copied — paste it to the AI',manual:'Select all in the preview box below and copy manually'}
+};
+function T(k){return TXT[LANG][k];}
+var VERD_EN={'返工':'Rework','小改后过':'Pass with tweaks','通过':'Pass'},SEV_EN={'高':'High','中':'Medium','低':'Low'};
+function tvV(x){return LANG==='en'?(VERD_EN[x]||x):x;}
+function tvS(x){return LANG==='en'?(SEV_EN[x]||x):x;}
+function qv(a){return a==='OK'?'OK':(LANG==='en'?'No':'不行');}
+document.title=T('title');
+
+var KEY='dk_state_'+D.id;
+var S={name:'',steps:{},q:{},qn:{},rc:{},rn:{},scores:{},why:{},issues:[],good:'',verdict:'',override:''};
+try{var raw=localStorage.getItem(KEY);if(raw)S=Object.assign(S,JSON.parse(raw));var nm=localStorage.getItem('dk_name');if(nm&&!S.name)S.name=nm;}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));localStorage.setItem('dk_name',S.name||'');}catch(e){}}
+
+function el(tag,props){
+  var e=document.createElement(tag),kids=Array.prototype.slice.call(arguments,2);
+  for(var k in (props||{})){var v=props[k];
+    if(k==='class')e.className=v;
+    else if(k.indexOf('on')===0)e.addEventListener(k.slice(2),v);
+    else if(k==='value')e.value=v;
+    else if(k==='checked')e.checked=!!v;
+    else if(v===true)e.setAttribute(k,'');
+    else if(v!==false&&v!=null)e.setAttribute(k,v);}
+  (function add(list){list.forEach(function(c){
+    if(Array.isArray(c))return add(c);
+    if(c==null||c===false)return;
+    e.append(c.nodeType?c:document.createTextNode(c));});})(kids);
+  return e;
+}
+
+// ---- 建议结论（与 dk_common.suggest_verdict 规则一致，改规则时两处一起改）----
+function allScored(){return D.dims.every(function(d){return S.scores[d];});}
+function filledIssues(){return S.issues.filter(function(i){return (i.now||'').trim();});}
+function suggest(){
+  if(!allScored())return null;
+  var lo=Math.min.apply(null,D.dims.map(function(d){return S.scores[d];}));
+  var iss=filledIssues();
+  if(lo<=2||iss.some(function(i){return i.sev==='高';}))return '返工';
+  if(lo===3||iss.some(function(i){return i.sev==='中';}))return '小改后过';
+  return '通过';
+}
+function finalVerdict(){return S.verdict||suggest();}
+
+// ---- 输出文本 ----
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function build(){
+  var L=[];
+  var en=LANG==='en';
+  L.push(en?('[Review '+D.milestone+' round '+D.round+'] Reviewer: '+(S.name||'')+'  Date: '+today())
+           :('【验收 '+D.milestone+' 第'+D.round+'轮】验收人：'+(S.name||'')+' 日期：'+today()));
+  L.push((en?'Scores: ':'分：')+D.dims.map(function(d){return d+(en?' ':'')+(S.scores[d]||'?');}).join(en?'  ':' '));
+  var why=D.dims.filter(function(d){return (S.why[d]||'').trim();}).map(function(d){return d+'='+S.why[d].trim();});
+  if(why.length)L.push((en?'Reasons: ':'理由：')+why.join(en?'; ':'；'));
+  var qs=D.questions.map(function(q,i){var a=S.q[i];if(!a)return null;return 'Q'+(i+1)+' '+qv(a)+((S.qn[i]||'').trim()?'('+S.qn[i].trim()+')':'');}).filter(Boolean);
+  if(qs.length)L.push((en?'Key questions: ':'重点判断：')+qs.join(en?'; ':'；'));
+  var rc=D.recheck.map(function(r,i){var a=S.rc[i];if(!a)return null;return r.id+' '+a+((S.rn[i]||'').trim()?'('+S.rn[i].trim()+')':'');}).filter(Boolean);
+  if(rc.length)L.push((en?'Re-check: ':'复验：')+rc.join(en?'; ':'；'));
+  var skipped=D.steps.map(function(_,i){return S.steps[i]?null:(i+1);}).filter(Boolean);
+  if(D.steps.length&&skipped.length&&skipped.length<D.steps.length)L.push((en?'Skipped: steps ':'没试：步骤')+skipped.join(','));
+  var iss=filledIssues();
+  if(iss.length){L.push(en?'Issues:':'问题：');iss.forEach(function(i,n){L.push((n+1)+'.['+i.dim+']['+tvS(i.sev)+'] '+i.now.trim()+((i.want||'').trim()?' | '+i.want.trim():''));});}
+  if((S.good||'').trim())L.push((en?'Good: ':'好的：')+S.good.trim());
+  var sug=suggest(),fin=finalVerdict();
+  if(fin){L.push((en?'Verdict: ':'结论：')+tvV(fin)+(S.verdict&&S.verdict!==sug
+      ?(en?' (overrides suggestion "'+tvV(sug)+'")':'（覆盖建议「'+sug+'」）'):(en?' (matches suggestion)':'（与建议一致）')));
+    if(S.verdict&&S.verdict!==sug&&(S.override||'').trim())L.push((en?'Override reason: ':'覆盖原因：')+S.override.trim());}
+  return L.join('\n');
+}
+
+// ---- 界面 ----
+var app=document.getElementById('app');
+var refs={};
+function section(title,badge,body){return el('div',{class:'card'},el('h2',null,title,badge?el('span',{class:'pill'},badge):null),body);}
+
+function render(){
+  app.textContent='';
+  app.append(el('h1',null,T('h1')(D.milestone,D.round)),
+    el('div',{class:'sub'},T('intro')));
+
+  // 怎么跑 + 路线
+  var stepsBox=el('div',null);
+  D.steps.forEach(function(s,i){
+    var cb=el('input',{type:'checkbox',checked:!!S.steps[i],onchange:function(){S.steps[i]=cb.checked;row.classList.toggle('done',cb.checked);save();refresh();}});
+    var row=el('label',{class:'step'+(S.steps[i]?' done':'')},cb,el('span',null,s));
+    stepsBox.append(row);
+  });
+  var top=el('div',null);
+  if(D.run)top.append(el('div',{class:'run'},D.run));
+  if(D.steps.length)top.append(el('div',{style:'height:8px'}),stepsBox);
+  refs.stepcount=el('span',{class:'pill'},'');
+  app.append(el('div',{class:'card'},el('h2',null,T('route'),refs.stepcount),top));
+
+  // AI 已验证 / 已知不足
+  if(D.verified.length||D.known.length){
+    var box=el('div',null);
+    if(D.verified.length)box.append(el('details',null,el('summary',null,T('verified')),el('ul',null,D.verified.map(function(v){return el('li',null,v);}))));
+    if(D.known.length)box.append(el('details',null,el('summary',null,T('known')),el('ul',null,D.known.map(function(v){return el('li',null,v);}))));
+    app.append(el('div',{class:'card'},box));
+  }
+
+  // 重点判断
+  if(D.questions.length){
+    var qb=el('div',null);
+    D.questions.forEach(function(q,i){
+      var seg=el('div',{class:'seg'});
+      ['OK','不行'].forEach(function(a){
+        var b=el('button',{type:'button',class:(S.q[i]===a?'on '+(a==='OK'?'ok':'bad'):''),onclick:function(){S.q[i]=(S.q[i]===a?'':a);save();render();}},a==='OK'?T('ok'):T('bad'));
+        seg.append(b);
+      });
+      var note=el('input',{type:'text',placeholder:T('note'),value:S.qn[i]||'',oninput:function(){S.qn[i]=note.value;save();refresh();}});
+      qb.append(el('div',{class:'q'},el('div',null,'Q'+(i+1)+'  '+q.replace(/^Q\d+[：:]\s*/,'')),seg,S.q[i]==='不行'?note:null));
+    });
+    app.append(section(T('keyq'),T('humanonly'),qb));
+  }
+
+  // 复验
+  if(D.recheck.length){
+    var rb=el('div',null);
+    rb.append(el('button',{class:'fast',type:'button',onclick:function(){D.recheck.forEach(function(_,i){S.rc[i]='✓';});save();render();}},T('allok')));
+    D.recheck.forEach(function(r,i){
+      var seg=el('div',{class:'seg'});
+      ['✓','✗'].forEach(function(a){seg.append(el('button',{type:'button',class:(S.rc[i]===a?'on '+(a==='✓'?'ok':'bad'):''),onclick:function(){S.rc[i]=(S.rc[i]===a?'':a);save();render();}},a));});
+      var note=el('input',{type:'text',placeholder:T('whatwrong'),value:S.rn[i]||'',oninput:function(){S.rn[i]=note.value;save();refresh();}});
+      rb.append(el('div',{class:'q'},el('div',null,el('b',null,r.id+' '),r.text),seg,S.rc[i]==='✗'?note:null));
+    });
+    app.append(section(T('recheckT'),T('recheckB'),rb));
+  }
+
+  // 打分
+  var sb=el('div',null);
+  sb.append(el('div',{class:'legend'},T('legend')));
+  sb.append(el('button',{class:'fast',type:'button',onclick:function(){D.dims.forEach(function(d){if(!S.scores[d])S.scores[d]=4;});save();render();}},T('fast')));
+  D.dims.forEach(function(d){
+    var sc=el('div',{class:'scale'});
+    [1,2,3,4,5].forEach(function(n){sc.append(el('button',{type:'button',class:S.scores[d]===n?'on':'',onclick:function(){S.scores[d]=n;save();render();}},String(n)));});
+    var needWhy=S.scores[d]&&(S.scores[d]<=2||S.scores[d]===5);
+    var why=el('input',{type:'text',placeholder:S.scores[d]===5?T('whyDelight'):T('whyWrong'),value:S.why[d]||'',oninput:function(){S.why[d]=why.value;save();refresh();}});
+    sb.append(el('div',{class:'dim'},el('div',{class:'name'},d),sc,needWhy?why:''));
+  });
+  app.append(section(T('scoreT'),null,sb));
+
+  // 问题
+  var ib=el('div',null);
+  S.issues.forEach(function(it,idx){
+    var dim=el('select',{onchange:function(){it.dim=dim.value;save();refresh();}},D.dims.map(function(d){return el('option',{value:d,selected:it.dim===d},d);}));
+    var sev=el('select',{onchange:function(){it.sev=sev.value;save();refresh();}},['高','中','低'].map(function(s){return el('option',{value:s,selected:it.sev===s},tvS(s));}));
+    var del=el('button',{class:'x',type:'button','aria-label':T('del'),onclick:function(){S.issues.splice(idx,1);save();render();}},'×');
+    var now=el('input',{type:'text',placeholder:T('what'),value:it.now||'',oninput:function(){it.now=now.value;save();refresh();}});
+    var want=el('input',{type:'text',placeholder:T('want'),value:it.want||'',oninput:function(){it.want=want.value;save();refresh();}});
+    ib.append(el('div',{class:'issue'},el('div',{class:'row'},dim,sev,del),now,want));
+  });
+  ib.prepend(el('div',{class:'legend'},T('sevLegend')));
+  ib.append(el('button',{class:'add',type:'button',onclick:function(){S.issues.push({dim:D.dims[Math.min(2,D.dims.length-1)],sev:'中',now:'',want:''});save();render();}},T('addIssue')));
+  app.append(section(T('issuesT'),T('skip'),ib));
+
+  // 好的地方
+  var good=el('textarea',{placeholder:T('goodPh'),value:S.good||'',oninput:function(){S.good=good.value;save();refresh();}});
+  app.append(section(T('goodT'),null,good));
+
+  // 结论
+  var vb=el('div',null);
+  refs.verdict=el('div',{class:'verdict'});
+  refs.reason=el('div',{class:'sub',style:'margin:2px 0 8px'});
+  var sel=el('select',{onchange:function(){S.verdict=sel.value;save();render();}},
+    el('option',{value:''},T('byAdvice')),
+    ['通过','小改后过','返工'].map(function(v){return el('option',{value:v,selected:S.verdict===v},T('changeTo')+tvV(v));}));
+  var ov=el('input',{type:'text',placeholder:T('whyOverride'),value:S.override||'',oninput:function(){S.override=ov.value;save();refresh();}});
+  var name=el('input',{type:'text',placeholder:T('reviewer'),value:S.name||'',oninput:function(){S.name=name.value;save();refresh();}});
+  vb.append(refs.verdict,refs.reason,sel,(S.verdict&&S.verdict!==suggest())?ov:'',name);
+  app.append(section(T('verdictT'),null,vb));
+
+  // 预览
+  refs.preview=el('textarea',{id:'preview',readonly:true});
+  app.append(section(T('preview'),T('previewB'),refs.preview));
+  refresh();
+}
+
+var REASONS=T('REASONS');
+function refresh(){
+  var done=D.steps.filter(function(_,i){return S.steps[i];}).length;
+  if(refs.stepcount)refs.stepcount.textContent=D.steps.length?done+' / '+D.steps.length:'';
+  var sug=suggest(),fin=finalVerdict();
+  if(refs.verdict){
+    refs.verdict.className='verdict'+(sug?' v-'+sug:'');
+    refs.verdict.textContent=sug?(T('sugPrefix')+tvV(sug)):T('sugNone');
+    refs.reason.textContent=sug?REASONS[sug]:'';
+  }
+  var missing=[];
+  if(!allScored())missing.push(T('mScore'));
+  D.dims.forEach(function(d){var s=S.scores[d];if(s&&(s<=2||s===5)&&!(S.why[d]||'').trim())missing.push(T('mReason')(d));});
+  if(S.verdict&&S.verdict!==sug&&!(S.override||'').trim())missing.push(T('mOverride'));
+  if(!(S.name||'').trim())missing.push(T('mName'));
+  var btn=document.getElementById('copy');
+  btn.disabled=missing.length>0;
+  document.getElementById('barmsg').textContent=missing.length?missing[0]+(missing.length>1?T('more')(missing.length-1):''):T('ready')+tvV(fin||'');
+  if(refs.preview)refs.preview.value=build();
+}
+
+function toast(t){var e=document.getElementById('toast');e.textContent=t;e.classList.add('show');setTimeout(function(){e.classList.remove('show');},2200);}
+document.getElementById('copy').addEventListener('click',function(){
+  var text=build();
+  function fallback(){refs.preview.value=text;refs.preview.select();var ok=false;try{ok=document.execCommand('copy');}catch(e){}toast(ok?T('copied'):T('manual'));}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){toast(T('copied'));},fallback);}else{fallback();}
+});
+
+render();
+})();
+</script>
+</body>
+</html>

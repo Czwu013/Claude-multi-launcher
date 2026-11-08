@@ -1,0 +1,18 @@
+{
+  "Claude Multi Launcher.cmd": "e8a2717bb26330dd953a2ded6f53cb389f9b3e05941ba67ec895a2afe0148a9f",
+  "build-exe.cmd": "1e3f3ebb32fed3401b90ec40980a6bf263381394f46f3a137ce0ebd939e88ca4",
+  "claude-multi-gui.ps1": "2db7c327d5f95bbf41e345e6a17a4463c9ac943aa7c2a6699d1febe83ad3f7aa",
+  "claude-multi-server.ps1": "5cbff73abbe2bb724f81d304292b326f37822d24d9d7f0616e9d7f87fb432a51",
+  "claude-multi.ps1": "6b0023154678d78f27ecbd874a10e7504a83d8851b119f19268d8aa1d670b569",
+  "create-desktop-shortcut.cmd": "f3a058a915f3afce0ab847d97fbcda4c1fe694efbeb7a021a1af7148b068512e",
+  "src/ClaudeMultiLauncher.psm1": "b5a93ab738a97f083c0b506cb4ca00df13b5640592ca25710f901fc64a554a52",
+  "src/i18n/en.psd1": "721107f0e4f0722817eabe2c4f3039e8d5316abe6a34ce69530467b66bcdcfa4",
+  "src/i18n/zh.psd1": "1cfaab4403ea649f3b43be653281511080686e7ac765ebe3224eaa797c48652e",
+  "tests/Test-Core.ps1": "35a6ef2f102c8ff80b2238190f50981029b41ac6d0c648151c1be38881847216",
+  "tests/Test-Features.ps1": "8bf4d91abd15860ca8b610b9feb8217bdfe40c980d840cb13aa8db9f3df4be55",
+  "tests/Test-Static.ps1": "b03f4e48d011c54df6d50bd7fe7cb169bf9371a09f060a465bbd7c6fc373a895",
+  "tests/Test-Ui.cjs": "1d150bcf07aad83799d6e3768015f85a770a41a90b227461c1b718e13f8d2d08",
+  "tools/Launcher.cs": "27d917b4e234949347951c7c625b8dea60a5fd5a27397dad0f6ff6b16a25e5d7",
+  "tools/New-DesktopShortcut.ps1": "ea271d733968fb697b9e1911afdd29e27f3e6b53728cabf831b030c146c81f3b",
+  "ui/index.html": "16edb27db2cba67151211badd642b1b986aba2f4a6afa4756eff23ad2a993bac"
+}
