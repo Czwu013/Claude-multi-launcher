@@ -2,6 +2,7 @@
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File | Where-Object { $_.Extension -in @('.ps1', '.psm1', '.psd1') })
+$files = @($files | Where-Object { $_.FullName -notlike ((Join-Path $Root 'build') + '\*') })
 $failures = @()
 $parsed = @()
 foreach ($file in $files) {
@@ -21,6 +22,9 @@ foreach ($key in $zh.Keys) {
     $b = @([regex]::Matches(($en[$key] -join "`n"), '\{\d+\}') | ForEach-Object { $_.Value } | Sort-Object -Unique)
     if (@(Compare-Object $a $b).Count) { $failures += "i18n placeholders differ: $key" }
 }
+$nativeZh = Get-Content -LiteralPath (Join-Path $Root 'src\i18n\native.zh.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$nativeEn = Get-Content -LiteralPath (Join-Path $Root 'src\i18n\native.en.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+if (Compare-Object @($nativeZh.PSObject.Properties.Name) @($nativeEn.PSObject.Properties.Name)) { $failures += 'native i18n keys differ' }
 # Conservative lexical audit: parameters, assignments and loop variables are declarations.
 # Runtime branch/order behavior is covered by Test-Core; this is not a full data-flow proof.
 $automatic = @('null','true','false','_','PSItem','args','input','this','Error','Host','HOME','PID','PWD','PSHOME','PSScriptRoot','PSCommandPath','PSBoundParameters','MyInvocation','ExecutionContext','LASTEXITCODE','PSVersionTable','PSCulture','PSUICulture','Matches','ErrorActionPreference','OFS')
@@ -56,4 +60,5 @@ foreach ($ast in $parsed) {
 if ($failures.Count) { $failures | Sort-Object -Unique | Write-Output; exit 1 }
 Write-Output "PASS UTF-8 BOM and parser: $($files.Count) files"
 Write-Output "PASS i18n keys and placeholders: $($zh.Count) keys per language"
+Write-Output ('PASS native i18n: {0} keys per language' -f @($nativeZh.PSObject.Properties).Count)
 Write-Output 'PASS lexical variable audit (conservative); run Test-Core for StrictMode runtime coverage'

@@ -71,14 +71,44 @@ try {
     $ws = New-Object -ComObject WScript.Shell
     $linkPath = Join-Path $desktop 'Claude Multi Launcher.lnk'
     $link = $ws.CreateShortcut($linkPath)
-    Assert-Feature ($link.IconLocation -eq ($iconPath + ',0')) 'launcher shortcut uses Claude Desktop icon, not PowerShell icon'
-    Assert-Feature ($link.Arguments -like '*claude-multi-server.ps1*' -and $link.Arguments -like '*-WindowStyle Hidden*') 'launcher shortcut still opens the hidden launcher host'
+    $launcherIcon = Join-Path $repo 'assets\launcher.ico'
+    Assert-Feature ($link.IconLocation -eq ($launcherIcon + ',0')) 'launcher shortcut uses the original project icon'
+    Assert-Feature ($link.TargetPath -eq (Join-Path $repo 'claude-multi-launcher.exe') -and $link.Arguments -eq '') 'launcher shortcut opens the native EXE directly'
     $link.IconLocation = ($link.TargetPath + ',0'); $link.Save()
     & (Join-Path $repo 'tools\New-DesktopShortcut.ps1') -Root $repo -DesktopPath $desktop | Out-Null
-    Assert-Feature ($ws.CreateShortcut($linkPath).IconLocation -eq ($iconPath + ',0')) 'rebuilding an existing launcher shortcut replaces its old generic icon'
-    $link = $ws.CreateShortcut($linkPath); $link.Arguments = '-NoProfile'; $link.Save()
+    Assert-Feature ($ws.CreateShortcut($linkPath).IconLocation -eq ($launcherIcon + ',0')) 'rebuilding an existing launcher shortcut replaces its old generic icon'
+    # Legacy server shortcuts migrate without changing unrelated same-name links.
+    $link = $ws.CreateShortcut($linkPath)
+    $link.TargetPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $link.Arguments = '-NoProfile -File "claude-multi-server.ps1"'; $link.Save()
+    & (Join-Path $repo 'tools\New-DesktopShortcut.ps1') -Root $repo -DesktopPath $desktop | Out-Null
+    Assert-Feature ($ws.CreateShortcut($linkPath).TargetPath -eq (Join-Path $repo 'claude-multi-launcher.exe')) 'old server shortcut migrates to native EXE'
+    $link = $ws.CreateShortcut($linkPath)
+    $link.TargetPath = Join-Path $sandbox 'Moved from\claude-multi-launcher.exe'; $link.Save()
+    & (Join-Path $repo 'tools\New-DesktopShortcut.ps1') -Root $repo -DesktopPath $desktop | Out-Null
+    Assert-Feature ($ws.CreateShortcut($linkPath).TargetPath -eq (Join-Path $repo 'claude-multi-launcher.exe')) 'owned native shortcut updates after moving the application folder'
+    $link = $ws.CreateShortcut($linkPath)
+    $link.TargetPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $link.Arguments = '-NoProfile'; $link.Save()
     Assert-Rejected { & (Join-Path $repo 'tools\New-DesktopShortcut.ps1') -Root $repo -DesktopPath $desktop } 'unrelated same-name shortcut is protected'
     Assert-Feature ($ws.CreateShortcut($linkPath).Arguments -eq '-NoProfile') 'protected unrelated shortcut remains unchanged'
+    $module = Get-Module ClaudeMultiLauncher
+    & $module {
+        param($Desktop)
+        $script:TestDesktop = $Desktop
+        function script:Get-CmlShortcutPath { param([string]$Name) return (Join-Path $script:TestDesktop ('Claude (' + $Name + ').lnk')) }
+    } $desktop
+    # Poison the icon cache with our gray project icon; profile creation must refresh it.
+    [IO.File]::WriteAllBytes($iconPath, [IO.File]::ReadAllBytes($launcherIcon))
+    $made = & $module { New-CmlShortcut -Prof (Get-CmlProfileOrThrow (Read-CmlConfig) 'Alpha') }
+    Assert-Feature ([bool]$made) 'new profile shortcut is created in the sandbox'
+    $profileLink = $ws.CreateShortcut((Join-Path $desktop 'Claude (Alpha).lnk'))
+    Assert-Feature ($profileLink.IconLocation -eq ($iconPath + ',0')) 'profile link references the local Claude icon, not the launcher icon'
+    Assert-Feature ([Convert]::ToBase64String([IO.File]::ReadAllBytes($iconPath)) -ceq $expectedBytes) 'creating profile shortcut replaces stale gray cache with installed Claude icon'
+    Assert-Feature ($profileLink.Arguments -like '*claude-multi.ps1*launch*Alpha*') 'profile shortcut retains the profile launch command'
+    [IO.File]::WriteAllBytes($iconPath, [IO.File]::ReadAllBytes($launcherIcon))
+    Update-CmlShortcut -Name 'Alpha' | Out-Null
+    Assert-Feature ([Convert]::ToBase64String([IO.File]::ReadAllBytes($iconPath)) -ceq $expectedBytes) 'rebuilding profile shortcut also refreshes the official local icon'
     Write-Output ('Passed: {0}   Failed: 0' -f $script:Passed)
 } catch { Write-Output $_; Write-Output $_.ScriptStackTrace; exit 1 }
 finally {
