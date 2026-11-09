@@ -3,7 +3,7 @@
 # functions as the command line. Nothing is reachable from other computers or other web pages.
 #   powershell -STA -ExecutionPolicy Bypass -File .\claude-multi-server.ps1
 
-param([switch]$NoBrowser)
+param([switch]$NoBrowser, [int]$ParentProcessId = 0)
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
@@ -81,7 +81,7 @@ function Get-StateObject {
         $profiles += , ([ordered]@{
                 name = $s.Name; dataDir = $s.DataDir; configDir = $s.ConfigDir; workspaceDir = $s.WorkspaceDir
                 tempDir = $s.TempDir; hasShortcut = $s.HasShortcut; launched = $s.Launched
-                violations = @($s.Violations); note = $s.Note; shortcutLabel = $s.ShortcutLabel
+                violations = @($s.Violations); note = $s.Note; shortcutLabel = $s.ShortcutLabel; processStatus = $s.ProcessStatus; processIds = @($s.ProcessIds)
             })
     }
     return [ordered]@{ ok = $true; lang = (Get-CmlLang); strings = (Get-StringTable); profiles = $profiles }
@@ -106,7 +106,7 @@ function Invoke-Browse {
 }
 
 function Invoke-Api {
-    param([string]$Name, $Body)
+    param([string]$Name, $Body, [scriptblock]$OnProgress)
     switch ($Name) {
         'ping' { return [ordered]@{ ok = $true } }
         'state' { return (Get-StateObject) }
@@ -115,16 +115,19 @@ function Invoke-Api {
             $root = [string](Get-Field $Body 'root' '')
             if ($root) { $p['Root'] = $root }
             if (-not [bool](Get-Field $Body 'shortcut' $true)) { $p['NoShortcut'] = $true }
-            Add-CmlProfile @p | Out-Null
+            Add-CmlProfile @p -OnProgress $OnProgress | Out-Null
             return [ordered]@{ ok = $true }
         }
-        'launch' {
-            $n = [string](Get-Field $Body 'name' '')
-            $was = $false
-            foreach ($s in @(Get-CmlProfileSummary)) { if ($s.Name -ieq $n) { $was = $s.Launched } }
-            Start-CmlProfile -Name $n | Out-Null
-            return [ordered]@{ ok = $true; first = (-not $was) }
+        'launch' { return (Start-CmlProfile -Name ([string](Get-Field $Body 'name' '')) -OnProgress $OnProgress) }
+        'stop' {
+            $force = [bool](Get-Field $Body 'force' $false)
+            $ids = @(); foreach ($itemId in @(Get-Field $Body 'expectedIds' @())) { $ids += [string]$itemId }
+            return (Stop-CmlProfile -Name ([string](Get-Field $Body 'name' '')) -Force:$force -ExpectedIds $ids -OnProgress $OnProgress)
         }
+        'mcp-info' { return (Get-CmlMcpConfigInfo -Name ([string](Get-Field $Body 'name' ''))) }
+        'mcp-open' { return (Open-CmlMcpConfig -Name ([string](Get-Field $Body 'name' ''))) }
+        'repair-plan' { return (Get-CmlRepairPlan) }
+        'repair' { return (Repair-CmlShortcuts -OnProgress $OnProgress) }
         'open' { Open-CmlWorkspace -Name ([string](Get-Field $Body 'name' '')) | Out-Null; return [ordered]@{ ok = $true } }
         'shortcut' { Update-CmlShortcut -Name ([string](Get-Field $Body 'name' '')) | Out-Null; return [ordered]@{ ok = $true } }
         'reorder' {
@@ -216,6 +219,22 @@ function Invoke-Request {
         try { $text = $sr.ReadToEnd() } finally { $sr.Dispose() }
         if ($text) { $body = $text | ConvertFrom-Json }
         $script:lastPing = Get-Date
+        if ($req.Headers['X-Progress'] -eq '1' -and $name -in @('create','launch','stop','repair')) {
+            $Ctx.Response.ContentType = 'application/x-ndjson; charset=utf-8'
+            $Ctx.Response.SendChunked = $true
+            $Ctx.Response.Headers.Add('Cache-Control','no-store')
+            $Ctx.Response.Headers.Add('X-Content-Type-Options','nosniff')
+            $writer = New-Object IO.StreamWriter($Ctx.Response.OutputStream,([Text.UTF8Encoding]::new($false)))
+            $writer.AutoFlush = $true
+            $report = { param($event) $writer.WriteLine((ConvertTo-Json -InputObject $event -Depth 8 -Compress)) }.GetNewClosure()
+            try {
+                $res = Invoke-Api $name $body -OnProgress $report
+                $writer.WriteLine((ConvertTo-Json -InputObject @{type='result';result=$res} -Depth 8 -Compress))
+            } catch {
+                $writer.WriteLine((ConvertTo-Json -InputObject @{type='error';error=$_.Exception.Message} -Compress))
+            } finally { $writer.Dispose(); $Ctx.Response.Close() }
+            return
+        }
         try {
             $res = Invoke-Api $name $body
             Send-Json $Ctx $res
@@ -242,6 +261,12 @@ function Find-Browser {
 
 $url = ('http://127.0.0.1:{0}/?t={1}' -f $port, $token)
 $script:lastPing = Get-Date
+$parentHost = $null
+if ($ParentProcessId -gt 0) {
+    $parentHost = [Diagnostics.Process]::GetProcessById($ParentProcessId)
+    [void]$parentHost.Handle # Bind this process identity, not a future reused PID.
+}
+if ($NoBrowser) { Write-Output $url }
 $proc = $null
 if (-not $NoBrowser) {
     $exe = Find-Browser
@@ -259,8 +284,10 @@ if (-not $NoBrowser) {
 # ---- serve until the window is closed -------------------------------------------------------
 $done = $false
 while (-not $done) {
+    if ($parentHost -and $parentHost.HasExited) { break }
     $ar = $listener.BeginGetContext($null, $null)
     while (-not $ar.AsyncWaitHandle.WaitOne(400)) {
+        if ($parentHost -and $parentHost.HasExited) { $done = $true; break }
         if ($proc -and $proc.HasExited) { $done = $true; break }
         if (-not $proc -and -not $NoBrowser -and ((Get-Date) - $script:lastPing).TotalSeconds -gt 30) { $done = $true; break }
     }
@@ -269,3 +296,5 @@ while (-not $done) {
     try { Invoke-Request $ctx } catch { try { $ctx.Response.Abort() } catch { } }
 }
 $listener.Stop()
+$listener.Close()
+if ($parentHost) { $parentHost.Dispose() }

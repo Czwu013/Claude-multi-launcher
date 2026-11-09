@@ -70,6 +70,11 @@ body.reordering, body.reordering * { cursor:grabbing !important; user-select:non
 .menu button { display:block; width:100%; text-align:left; border:0; background:transparent; border-radius:10px; height:38px; padding:0 12px; }
 .menu button:hover { background:var(--btn-h); }
 .menu button.danger { color:var(--warn); }
+.progress-list { padding-left:24px; color:var(--muted); }
+.progress-list li { margin:10px 0; }
+.progress-list li.current { color:var(--text); font-weight:600; }
+progress { width:100%; accent-color:var(--ok); }
+.actions { flex-wrap:wrap; justify-content:flex-end; }
 .empty { padding:40px 30px; color:var(--muted); }
 footer { flex:none; margin-top:12px; color:var(--dim); font-size:13px; min-height:20px; }
 .overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:24px; z-index:50; }
@@ -103,6 +108,7 @@ input[type=checkbox]:disabled { opacity:.45; cursor:default; }
   <header>
     <div><h1 id="title">Claude Multi Launcher</h1><p id="summary"></p></div>
     <div class="actions">
+      <button id="repairBtn"></button>
       <button id="scanBtn"></button>
       <button id="langBtn"></button>
       <button id="newBtn" class="primary big"></button>
@@ -120,6 +126,7 @@ input[type=checkbox]:disabled { opacity:.45; cursor:default; }
 const token = new URLSearchParams(location.search).get('t') || '';
 let S = { strings:{}, profiles:[], lang:'zh' };
 let savingOrder = false;
+let operationBusy = false, refreshingRuntime = false;
 const short = (p) => String(p||'').replace(/^[A-Za-z]:\\Users\\[^\\]+/, '~');
 const $ = (id) => document.getElementById(id);
 const t = (k, ...a) => { let s = S.strings[k] || k; a.forEach((v,i)=>{ s = s.split('{'+i+'}').join(v); }); return s; };
@@ -141,7 +148,7 @@ async function api(name, body) {
 function toast(msg) { const e = h('div',{class:'toast'},msg); document.body.append(e); setTimeout(()=>e.remove(),2600); }
 async function guard(fn) { try { return await fn(); } catch (e) { showMessage(t('gui.error_title'), e.message, true); } }
 
-function closeLayer() { $('layer').replaceChildren(); }
+function closeLayer() { if (!operationBusy) $('layer').replaceChildren(); }
 function openModal(title, body, wide) {
   const m = h('div',{class:'modal'+(wide?' wide':'')}, h('h2',{},title), body);
   const o = h('div',{class:'overlay', onmousedown:(ev)=>{ if (ev.target===o) closeLayer(); }}, m);
@@ -156,19 +163,21 @@ function render() {
   document.documentElement.lang = S.lang;
   document.title = t('gui.title'); $('title').textContent = t('gui.title');
   $('scanBtn').textContent = t('gui.scan'); $('langBtn').textContent = t('gui.lang'); $('newBtn').textContent = t('gui.new_group');
+  $('repairBtn').textContent = t('gui.repair');
+  $('status').textContent = t('gui.runtime_note')+' · v24';
   $('orderHead').setAttribute('aria-label',t('gui.col_order'));
   $('h1').textContent = t('gui.col_name'); $('h2').textContent = t('gui.col_state');
   $('h3').textContent = t('gui.col_shortcut'); $('h4').textContent = t('gui.col_folders');
-  const ps = S.profiles; const launched = ps.filter(p=>p.launched).length; const bad = ps.filter(p=>p.violations.length).length;
+  const ps = S.profiles; const launched = ps.filter(p=>p.processStatus==='running').length; const bad = ps.filter(p=>p.violations.length).length;
   $('summary').textContent = t('gui.summary', ps.length, launched, bad);
   const rows = $('rows'); rows.replaceChildren();
   $('empty').hidden = ps.length>0; $('empty').textContent = t('gui.empty');
   for (const p of ps) {
-    let st = t('gui.st_new'), dot = '';
-    if (p.violations.length) { st = t('gui.st_conflict'); dot = 'warn'; } else if (p.launched) { st = t('gui.st_launched'); dot = 'ok'; }
+    let st = t('gui.'+(p.processStatus==='running'?'running':p.processStatus==='stopped'?'stopped':'unknown')), dot = p.processStatus==='running'?'ok':'';
+    if (p.violations.length) { st = t('gui.st_conflict'); dot = 'warn'; }
     const more = h('button',{class:'icon', title:'…'}, '···');
     const ops = h('div',{class:'ops'},
-      h('button',{class:'primary', onclick:()=>launch(p)}, t('gui.launch')),
+      h('button',{class:'primary', onclick:()=>launch(p)}, t(p.processStatus==='running'?'gui.focus':'gui.launch')),
       h('button',{onclick:()=>guard(()=>api('open',{name:p.name}))}, t('gui.open')),
       more);
     more.addEventListener('click',(ev)=>{ ev.stopPropagation(); openMenu(more, p); });
@@ -259,6 +268,8 @@ function openMenu(btn, p) {
   const item = (label, fn, cls) => h('button',{class:cls||'',onclick:()=>{ menu.remove(); fn(); }}, label);
   const menu = h('div',{class:'menu'},
     item(t('gui.paths'), ()=>showPaths(p)),
+    item(t('gui.stop'), ()=>confirmStop(p)),
+    item(t('gui.mcp'), ()=>showMcp(p)),
     item(t('gui.shortcut'), ()=>guard(async()=>{ await api('shortcut',{name:p.name}); await refresh(); toast(t('gui.shortcut_done',p.name)); })),
     item(t('gui.remove'), ()=>confirmRemove(p)),
     item(t('gui.purge'), ()=>showPurge(p), 'danger'));
@@ -273,8 +284,10 @@ document.addEventListener('scroll',()=>document.querySelectorAll('.menu').forEac
 async function refresh() { const j = await api('state'); S = { strings:j.strings, profiles:j.profiles, lang:j.lang }; render(); }
 
 function launch(p) { guard(async()=>{
-  const j = await api('launch',{name:p.name});
-  await refresh(); toast(t('gui.launched',p.name));
+  const j = await operate('launch',{name:p.name});
+  await refresh();
+  if (j.alreadyRunning && !j.focused) showMessage(p.name,t('gui.focus_failed',p.name));
+  else toast(t(j.alreadyRunning?'gui.focused':'gui.process_detected',p.name));
   if (j.first) openModal(p.name, h('div',{}, h('p',{},t('msg.first_launch')), h('p',{},t('msg.first_launch_tip')), h('div',{class:'foot'},h('button',{class:'primary',onclick:closeLayer},'OK'))));
 }); }
 function showPaths(p) {
@@ -320,7 +333,7 @@ function showCreate() {
   const sc = h('input',{type:'checkbox',checked:true});
   const go = () => guard(async()=>{
     const n = name.value.trim(); if (!n) throw new Error(t('gui.name_empty'));
-    await api('create',{name:n,root:root.value.trim(),shortcut:sc.checked});
+    await operate('create',{name:n,root:root.value.trim(),shortcut:sc.checked});
     closeLayer(); await refresh(); toast(t('gui.created',n));
     openModal(n, h('div',{}, h('p',{},t('gui.created',n)+'\n'+t('gui.created_tip')), h('div',{class:'foot'},h('button',{class:'primary',onclick:closeLayer},'OK'))));
   });
@@ -366,10 +379,97 @@ function showScan() { guard(async()=>{
     h('div',{class:'foot'}, h('button',{onclick:closeLayer},t('gui.close')), h('button',{class:'primary',onclick:doImport},t('gui.import_sel')))), true);
 }); }
 
+
+function setOperationBusy(value) {
+  operationBusy=value;
+  document.querySelectorAll('header button,.row button,.menu button').forEach(b=>b.disabled=value);
+}
+async function operate(name, body) {
+  if (operationBusy) return Promise.reject(new Error(t('gui.working')));
+  document.querySelectorAll('.menu').forEach(m=>m.remove());
+  const list=h('ol',{class:'progress-list','aria-live':'polite'}),bar=h('progress',{max:1,value:0});
+  openModal(t('gui.working'),h('div',{},list,bar)); setOperationBusy(true);
+  let lastStep='',result=null,failed=null,seenResult=false;
+  const receive = event=>{
+    if(event.type==='progress') {
+      if(!Number.isInteger(event.index)||!Number.isInteger(event.total)||event.total<1) throw new Error(t('gui.stream_lost'));
+      [...list.children].forEach(e=>e.classList.remove('current'));
+      list.append(h('li',{class:'current'},event.text)); lastStep=event.text;
+      bar.max=event.total;bar.value=Math.max(0,event.index-1);
+    } else if(event.type==='result') { result=event.result;seenResult=true;bar.value=bar.max; }
+    else if(event.type==='error') { failed=event.error||t('gui.stream_lost'); }
+  };
+  try {
+    const response=await fetch('/api/'+name,{method:'POST',headers:{'X-Token':token,'Content-Type':'application/json','X-Progress':'1'},body:JSON.stringify(body||{})});
+    if(!response.ok||!response.body) throw new Error(t('gui.stream_lost'));
+    const reader=response.body.getReader(),decoder=new TextDecoder();let pending='';
+    try {
+      while(true) {
+        const chunk=await reader.read();pending+=decoder.decode(chunk.value||new Uint8Array(),{stream:!chunk.done});
+        let end;while((end=pending.indexOf('\n'))>=0) {const line=pending.slice(0,end).trim();pending=pending.slice(end+1);if(line)receive(JSON.parse(line));}
+        if(chunk.done)break;
+      }
+      if(pending.trim())receive(JSON.parse(pending));
+    } finally { reader.releaseLock(); }
+    if(failed)throw new Error(failed);
+    if(!seenResult||!result?.ok)throw new Error(result?.error||t('gui.stream_lost'));
+    return result;
+  } catch(error) {
+    throw new Error(lastStep?t('gui.step_failed',lastStep,error.message):error.message);
+  } finally {
+    setOperationBusy(false);closeLayer();
+    try {await refresh();} catch (_) { S.profiles.forEach(p=>p.processStatus='unknown');render(); }
+  }
+}
+function confirmStop(p) {
+  openModal(p.name,h('div',{},h('p',{},t('gui.stop_note',p.name)),h('div',{class:'foot'},
+    h('button',{onclick:closeLayer},t('gui.cancel')),
+    h('button',{class:'primary',onclick:()=>guard(async()=>{
+      const result=await operate('stop',{name:p.name});
+      if(result.stopped) { toast(t('gui.stopped_ok',p.name));return; }
+      openModal(p.name,h('div',{},h('p',{},t('gui.force_note')),h('div',{class:'foot'},
+        h('button',{onclick:closeLayer},t('gui.cancel')),
+        h('button',{class:'danger',onclick:()=>guard(async()=>{
+          const forced=await operate('stop',{name:p.name,force:true,expectedIds:result.remaining});
+          showMessage(p.name,t(forced.stopped?'gui.stopped_ok':'gui.still_running',p.name),!forced.stopped);
+        })},t('gui.force_go')))));
+    })},t('gui.stop_go')))));
+}
+function showMcp(p) { guard(async()=>{
+  const info=await api('mcp-info',{name:p.name});
+  openModal(p.name,h('div',{},h('p',{},t('gui.mcp_note')),h('p',{class:'mono',style:'white-space:pre-wrap;word-break:break-all'},info.path),
+    !info.exists?h('p',{class:'bad'},t('runtime.config_missing')):null,h('div',{class:'foot'},
+    h('button',{onclick:closeLayer},t('gui.cancel')),
+    h('button',{class:'primary',disabled:!info.exists,onclick:()=>guard(async()=>{await api('mcp-open',{name:p.name});closeLayer();})},t('gui.mcp_open')))));
+}); }
+function showRepair() { guard(async()=>{
+  const plan=await api('repair-plan');
+  const items=h('div',{},plan.items.map(item=>h('p',{},item.name+(item.protected?' — '+t('gui.repair_protected'):''))));
+  openModal(t('gui.repair_title'),h('div',{},h('p',{},t('gui.repair_note')),
+    h('div',{class:'kv'},h('div',{},t('gui.install_path')),h('div',{},plan.exe),h('div',{},t('gui.version')),h('div',{},plan.version||'—')),items,
+    h('div',{class:'foot'},h('button',{onclick:closeLayer},t('gui.cancel')),
+    h('button',{class:'primary',onclick:()=>guard(async()=>{
+      const result=await operate('repair');
+      showMessage(t('gui.repair_title'),result.results.map(item=>item.name+': '+t('gui.repair_'+item.status)).join('\n'),result.results.some(item=>item.status==='failed'));
+    })},t('gui.repair_go')))),true);
+}); }
+async function refreshRuntime() {
+  if(refreshingRuntime||operationBusy||savingOrder||document.hidden||$('layer').childElementCount||document.querySelector('.menu')||document.body.classList.contains('reordering'))return;
+  refreshingRuntime=true;
+  try {
+    const next=await api('state');
+    if(operationBusy||savingOrder||$('layer').childElementCount||document.querySelector('.menu')||document.body.classList.contains('reordering'))return;
+    if(JSON.stringify(next.profiles)!==JSON.stringify(S.profiles)) { S={strings:next.strings,profiles:next.profiles,lang:next.lang};render(); }
+  } catch (_) {
+    if(!operationBusy&&!savingOrder&&!$('layer').childElementCount&&!document.body.classList.contains('reordering')) { S.profiles.forEach(p=>p.processStatus='unknown');render(); }
+  } finally { refreshingRuntime=false; }
+}
+
+$('repairBtn').onclick = showRepair;
 $('newBtn').onclick = showCreate; $('scanBtn').onclick = showScan;
 $('langBtn').onclick = () => guard(async()=>{ await api('lang',{value:S.lang==='zh'?'en':'zh'}); await refresh(); });
 document.addEventListener('keydown',e=>{ if (e.key==='Escape') closeLayer(); });
-setInterval(()=>{ api('ping').catch(()=>{}); }, 5000);
+setInterval(()=>{ api('ping').catch(()=>{}); refreshRuntime(); }, 5000);
 guard(refresh);
 </script>
 </body>

@@ -1,3 +1,47 @@
+# v24 — Native window and original launcher icon
+
+- Added an original gray overlapping-window icon to the launcher EXE, title strip, launcher desktop shortcut and bilingual READMEs. Profile shortcuts retain the locally installed Claude icon and refresh it on create/rebuild.
+- Replaced the browser-app wrapper with a WinForms / WebView2 EXE that embeds the existing UI. Native caption and page backgrounds match in dark/light themes; drag/resize and caption controls remain.
+- Pinned the Microsoft SDK package/hash, included its license/notice in portable builds, kept random loopback authentication and scoped child-service cleanup. External content/navigation is blocked.
+- Fixed Windows PowerShell 5.1 icon-refresh replacement with NullString.Value.
+- Machine checks: both PowerShell versions core 78/78, features 26/26, runtime 42/42; static 15 files / 214 UI keys / 14 native keys. Native EXE smoke 13 checks plus existing mock UI regression. No real Claude process/sign-in tested.
+- Windows x64, .NET Framework 4.8, Windows PowerShell 5.1 and WebView2 Evergreen Runtime required. Unsigned portable EXE, not a single-file distribution. No Claude binaries/icons/account data included. Pending human acceptance: M3_r3.
+# v23 — Instance lifecycle and maintenance
+
+November 9, 2026
+
+- Added live process status, idle refresh, duplicate-launch focus and a bounded launch check. Process status is separate from login.
+- Added streamed operation steps and step-specific errors. Closing an instance first requests normal shutdown; force termination requires a separate confirmation and verified process identities/handles.
+- Added an existing-file-only MCP config entry and preview/confirmation for local installation checks, icon refresh and profile shortcut repair. External same-name shortcuts remain protected; failures are reported per item.
+- Core 78/78, existing features 19/19 and new runtime 42/42 passed on both Windows PowerShell 5.1 and PowerShell 7. Actual Windows process/HTTP tests used inert self-built helpers; UI checks used mock actions. Real Claude acceptance remains pending.
+- Existing GIFs/screenshots, ordering, menu-only record removal, naming and locally sourced icon behavior are preserved. No account data, login status, usage/reset tracking, app installer or registry modification was added.
+
+# v22 — Gmail-style sign-in tutorial
+
+November 9, 2026
+
+- Replaced generic cards with separate Claude desktop, Gmail inbox/message, browser handoff and manual-code scenes.
+- Updated both embedded GIFs: 1280×900, 39.02 seconds, English or Chinese captions, cursor highlights and persistent reconstruction labels.
+- This is an illustrated reconstruction using sample data, not a live sign-in test or a verified copy of current authentication screens. Existing application code/tests and previous media are unchanged; Windows acceptance remains pending.
+
+# v21 — Email sign-in tutorial
+
+November 9, 2026
+
+- Added illustrated English and Chinese Test sign-in GIFs and detailed steps to both READMEs.
+- Emphasized Cancel on the browser handoff prompt, Log in with code, and entering the code in the new Test desktop window.
+- Distinguished browser-only sign-out (user-described behavior, not independently tested here) from all-session logout, which official help says also signs out desktop apps.
+- Both animations use placeholder email/code and schematics, not live authentication. Application code and existing tests remain unchanged; Windows acceptance remains pending.
+
+# v20 — Side-by-side screenshot
+
+November 9, 2026
+
+- Added the user-provided screenshot of two Claude Desktop windows to both READMEs, before the existing animated demo.
+- The original screenshot and both language versions of the GIF are preserved.
+- Application code and existing tests are unchanged. Documentation and package checks only; no new claims about account isolation or sign-in.
+- Not uploaded to GitHub by this task; Windows acceptance remains pending.
+
 # v19 — English documentation and demo
 
 November 9, 2026

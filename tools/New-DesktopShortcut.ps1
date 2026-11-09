@@ -3,19 +3,18 @@
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
-# Puts a "Claude Multi Launcher" icon on the desktop. The icon runs the local window with a
-# hidden PowerShell host, so double-clicking it shows only the launcher. Run once; nothing is
+# Puts a "Claude Multi Launcher" icon on the desktop. The shortcut opens our native EXE.
+# Run once; nothing is
 # installed. Delete the icon any time to undo.
 $root = (Resolve-Path -LiteralPath $Root).Path.TrimEnd('\')
-$server = Join-Path $root 'claude-multi-server.ps1'
+$server = Join-Path $root 'claude-multi-launcher.exe'
 if (-not (Test-Path -LiteralPath $server)) {
-    throw 'claude-multi-server.ps1 was not found. Keep this tool in the repo folder.'
+    throw 'Build the native launcher first with build-exe.cmd, or extract the complete portable package.'
 }
 
-$ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 Import-Module (Join-Path $root 'src\ClaudeMultiLauncher.psm1') -Force -DisableNameChecking
-$iconPath = Get-CmlIconPath
-if (-not $iconPath) { throw (Get-CmlText 'err.icon_missing') }
+$iconPath = Join-Path $root 'assets\launcher.ico'
+if (-not (Test-Path -LiteralPath $iconPath -PathType Leaf)) { throw ('Launcher icon not found: ' + $iconPath) }
 $desktop = $DesktopPath
 if (-not $desktop) { $desktop = [Environment]::GetFolderPath('Desktop', 'DoNotVerify') }
 if (-not $desktop) { $desktop = Join-Path $env:USERPROFILE 'Desktop' }
@@ -26,13 +25,14 @@ $lnkPath = Join-Path $desktop 'Claude Multi Launcher.lnk'
 
 $ws = New-Object -ComObject WScript.Shell
 $lnk = $ws.CreateShortcut($lnkPath)
-if ((Test-Path -LiteralPath $lnkPath) -and $lnk.Arguments -notlike '*claude-multi-server.ps1*') {
+$ownedNative = $lnk.Description -eq 'Claude Multi Launcher' -and (Split-Path -Leaf $lnk.TargetPath) -eq 'claude-multi-launcher.exe'
+if ((Test-Path -LiteralPath $lnkPath) -and $lnk.Arguments -notlike '*claude-multi-server.ps1*' -and $lnk.TargetPath -ne $server -and -not $ownedNative) {
     throw ('Refusing to replace an unrelated shortcut: ' + $lnkPath)
 }
-$lnk.TargetPath = $ps
-$lnk.Arguments = ('-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File "{0}"' -f $server)
+$lnk.TargetPath = $server
+$lnk.Arguments = ''
 $lnk.WorkingDirectory = $root
-$lnk.WindowStyle = 7          # minimized; the PowerShell host is hidden anyway
+$lnk.WindowStyle = 1
 $lnk.IconLocation = ($iconPath + ',0')
 $lnk.Description = 'Claude Multi Launcher'
 $lnk.Save()

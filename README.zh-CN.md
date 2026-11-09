@@ -1,11 +1,15 @@
 # claude-multi-launcher
 
+<p><img src="assets/launcher.png" width="96" alt="Claude Multi Launcher original gray overlapping-window icon"></p>
+
 [English](README.md) | 简体中文
 
 > **非官方社区工具。** 由社区独立开发，与 Anthropic 无关联，不代表其官方产品或认可。"Claude" 是 Anthropic 的商标，这里仅用于说明本工具兼容的对象。
 > *Unofficial community tool. Not affiliated with, endorsed by, or sponsored by Anthropic. "Claude" is a trademark of Anthropic and is used here only to describe what this tool works with.*
 
-在 Windows 上，让**同一个人合法拥有的多个 Claude 账号**（例如工作号和个人号）各用一套独立的 profile，并行运行 Claude 桌面版。每个 profile 配置独立的数据、记忆、工作和临时目录及桌面快捷方式；桌面版是否采用全部目录仍需实机验证。支持中英双语。
+一个简单的 Windows 配置工具，让你在一台电脑上同时运行多个 Claude 桌面端。面向**同一个人合法拥有的多个 Claude 账号**（例如工作号和个人号），为每个账号配置独立的 profile，以及各自的数据、记忆、工作和临时目录与桌面快捷方式。支持中英双语。
+
+实际隔离效果及 Claude 桌面版是否采用全部目录，仍需实机验证。
 
 - 设计文档：[`docs/design/DESIGN.md`](docs/design/DESIGN.md)
 - 开发记录入口：[`docs/dev/README.md`](docs/dev/README.md)
@@ -16,7 +20,7 @@
 **做：** 以官方安装的 Claude 桌面版为准，附加 Chromium 的标准参数 `--user-data-dir`，并只对启动出来的子进程设置 `CLAUDE_CONFIG_DIR` 与 `CLAUDE_CODE_TMPDIR`。
 
 **不做（也不会做）：**
-- 不修改、重新打包或分发 Claude 程序；本仓库不包含 Claude 图标。快捷方式沿用本机已安装的 Claude Desktop 图标，仅在用户电脑上提取，不随仓库分发。
+- 不修改、重新打包或分发 Claude 程序；本仓库不包含 Claude 图标。profile 快捷方式沿用本机 Claude Desktop 图标，仅在用户电脑上提取，不随仓库分发；启动器使用原创灰色双窗口图标。
 - 不读取、不解析、不复制、不上传任何登录令牌、Cookie 或会话文件，也不在 profile 之间搬运登录状态。
 - 不写注册表，不改安全设置，不需要管理员权限，仅使用本机回环服务，不调用 Anthropic 远程接口或发送遥测；Claude 本体的联网行为不由本工具控制。
 - 不提供切换第三方 API、规避用量限制、共享或转售账号的功能。请遵守 Anthropic 的使用条款；不得通过账号轮换规避限制、封禁或保护措施；额度规则由 Anthropic 决定，本工具不作额度相互独立的承诺。
@@ -34,6 +38,27 @@
 演示顺序：新建 `Personal` → 创建并启动 → 阅读首次启动提示 → 新建并启动 `Work`。实际使用时，先在官方 Claude 窗口完成一个账号的登录，再启动下一个。
 
 动图使用真实启动器界面和模拟后端响应，没有启动 Claude 或录制登录；“已启动过”不代表已登录。这里的 clone 是为同一个官方程序指定不同的数据目录，不是复制或修改 Claude 程序。实际隔离效果仍需按版本验证。
+
+## 关键登录步骤：把新账号登录到 Test 窗口
+
+![新建 Test 桌面端的邮箱登录流程示意](docs/media/login-test-zh.gif)
+
+此教程按用户提供的流程，分别重绘 Claude 桌面端、Gmail 网页版和浏览器提示，配有中文字幕与鼠标高亮。它是仿真教程，不是真实登录录屏，也未验证与当前界面完全一致。邮箱和代码均为占位内容；实际使用你本次登录页显示的代码。
+
+配置好新 profile 的目录后：
+
+1. 先退出 **浏览器当前 Claude 网页会话**，保留另一个桌面窗口，不要在那个桌面窗口里退出。按用户描述，普通网页退出不影响另一个桌面端；本轮未独立实测该行为，不对所有退出方式作保证。
+2. 打开新克隆的 **Test 桌面窗口**，输入 Test 的邮箱地址，点击发送登录邮件 / 验证码。
+3. 进入 Test 的邮箱，点击这次登录对应的邮件链接。
+4. 浏览器弹出类似 **“要打开 Claude 吗？”** 的提示时，**点“取消”**，不要让浏览器自动把链接交给其他桌面窗口。
+5. 此时网页显示 **“Logging you in…”**，点击下面的 **“Log in with code”**。
+6. 复制网页显示的代码。
+7. 切回 **Test 桌面窗口**，把代码输入那里；不要输入到已有桌面窗口。
+8. 完成登录，确认 Test 使用的是目标账号。一个 profile 登录完成后，再进行下一个。
+
+**不要使用“退出所有会话”。** 官方[全会话退出说明](https://support.claude.com/en/articles/10310342-how-do-i-log-out-of-all-active-sessions)中的 **Settings → Account → Log Out** 会同时退出桌面端，与本教程所指的当前网页会话退出不同。无法确认退出范围时，先不要操作。多开器不会代登录，也不会读取邮箱或代码。
+
+第 4–7 步的具体画面以用户提供的流程为依据，可能随版本改变。官方[邮箱登录说明](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account)也介绍了在发起登录的设备上输入验证码，但不能据此视为已验证本教程的每个桌面端画面。
 
 ## 每个 profile 的「四件套」
 
@@ -55,15 +80,19 @@
 
 ## 快速开始（图形界面）
 
-直接双击 **`Claude Multi Launcher.cmd`** 即可，不用编译、不下载、不安装任何东西。它会用系统自带的 Edge（没有就用 Chrome）打开一个独立的应用窗口：在里面新建 profile、扫描并导入已有的 clone、启动、打开文件夹、查看路径、重建快捷方式、删除记录。窗口背后是只监听本机 `127.0.0.1` 的小服务（随机端口加随机令牌），关闭窗口后服务自动退出。这个 `.cmd` 要和 `claude-multi-server.ps1`、`src`、`ui` 文件夹放在一起。
+完整解压 **Windows x64 便携版**到稳定目录，直接双击 **`claude-multi-launcher.exe`**。保留全部配套文件。它用 **WebView2 内嵌窗口**显示原有界面，不打开 Edge / Chrome 浏览器窗口；仍会运行 WebView2 渲染进程。顶部标题栏与页面背景同色，支持拖动、调整大小、最小化、最大化和关闭。
+
+需要 64 位 Windows 10/11、Windows PowerShell 5.1、.NET Framework 4.8 及 [微软 WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)。便携包包含自编译的启动器和 SDK DLL，不含运行时安装程序或 Claude。缺少运行时会提示，请自行从微软安装；启动器不自动安装、不改注册表。程序未签名，Windows 可能显示信誉提示。
+
+窗口背后仍是只监听 `127.0.0.1` 的随机端口/随机令牌服务；关闭窗口只退出自己启动的本地服务，不结束 Claude。WebView2 使用独立的 `%LOCALAPPDATA%\claude-multi-launcher\webview2` 缓存，不复用 Edge、Chrome 或 Claude profile；禁止外部导航、弹窗和下载，不暴露原生对象或消息桥。
 
 想要桌面上有个固定图标：先运行一次 `create-desktop-shortcut.cmd`，它会在桌面放一个「Claude Multi Launcher」图标，之后双击该图标打开即可。
 
-（可选）如果你更想要一个真正的 `.exe`：双击 `build-exe.cmd`，它会用 Windows 自带的 C# 编译器在本机生成 `claude-multi-launcher.exe`（同样不下载、不安装）。exe 和上面的 `.cmd` 作用相同，只是双击时不会有命令行窗口一闪而过。
+如果下载的是 GitHub 源码：先运行 `build-exe.cmd`。首次编译会从微软官方 NuGet 下载固定版本的 WebView2 SDK（1.0.4314.35，校验 SHA-256），再用 Windows 自带的 C# 编译器生成 EXE；不安装运行时。已有 SDK 可通过 `tools/Build-Native.ps1 -PackagePath <sdk.nupkg>` 离线编译。`Claude Multi Launcher.cmd` 也可使用：缺少 EXE 时先编译，再打开同一个内嵌窗口。EXE 需要配套 DLL、assets、src、ui 和后端脚本，不是单文件程序。便携版无需编译。旧浏览器服务入口仅作开发调试保留。
 
 **v16 表格操作：**最左侧圆点可按住上下拖动排序，松手后保存，下次打开保留；聚焦圆点后也可使用上下方向键，拖动中按 Esc 取消。“··· → 删除记录”会先确认，保留所有数据目录；每行不再单独显示删除按钮；“连数据一起删除”仍在“···”菜单中。
 
-桌面图标使用本机已安装的 Claude Desktop 图标。更新后重新运行 `create-desktop-shortcut.cmd`，即可重建 launcher 图标；档案图标用“··· → 重建快捷方式”更新。不要移动解压后的工具目录，否则应再重建快捷方式。交付包不包含 Claude 图标。
+**启动器 EXE、启动器桌面快捷方式和 README 使用原创灰色双窗口图标。每个 profile 快捷方式仍使用本机 Claude Desktop 的原图标**，新建/重建时重新提取，不做灰度修改，也不随仓库分发。编译或解压 EXE 后运行 `create-desktop-shortcut.cmd`，可将旧启动器快捷方式迁移到新 EXE；档案图标用“··· → 重建快捷方式”更新。移动工具目录后再重建启动器快捷方式。
 
 ## 快速开始（命令行）
 
@@ -107,11 +136,20 @@ powershell -ExecutionPolicy Bypass -File .\claude-multi.ps1 launch Study
 3. **如果你的版本仍有本地 Cowork，它依赖整机唯一的虚拟机，同一时间可能只能一个 profile 使用。** 如果你的版本是统一版 Claude、任务只在云端运行，这一条不适用。
 4. 以上行为依赖 Claude 桌面版本身，更新后可能变化。
 
+## 实例管理（v23）
+
+- 表格显示**运行中／未运行／状态未知**，依据当前 Windows 会话中匹配的主进程元数据，表格空闲时约每 5 秒刷新。这不是登录状态。权限不足、程序路径不符时显示未知；不能可靠识别时拒绝控制。
+- “启动”发送请求后，最多等待 15 秒检查对应档案进程；已经运行则尝试显示窗口，不重复启动。Windows 前台限制或 Claude 驻留托盘时可能无法聚焦，会明确提示。
+- 新建、启动、关闭、修复显示服务器实时步骤，失败指出当前步骤。新建时若快捷方式失败，档案可能已经保存，请刷新列表后重建快捷方式，不要重复新建。
+- **“··· → 关闭此实例…”**先尝试正常关闭，最多等待 5 秒。主进程仍在时才提供单独的“强制结束此实例”确认，请先保存工作。强制结束只针对本次确认的主进程，再核对 PID、创建时间、程序路径和参数，并绑定进程句柄；不会按程序名结束所有 Claude。后台辅助进程的清理由应用自身决定。
+- **“··· → 打开 MCP 配置…”**展示 `<此档案的数据目录>\claude_desktop_config.json`，确认后用记事本打开已有文件。工具不读取内容、不复制配置、不创建缺失文件。请在对应版本 Claude 中核对实际路径，编辑后可能需要重启此实例。
+- **“检查与修复…”**预览检测到的本机 Claude 和已启用的档案快捷方式；确认后刷新本机提取的图标、重建合适的快捷方式，保护同名外部快捷方式并逐项报告失败。不下载或更新 Claude，不自动改显式程序路径配置；启动器本身的快捷方式仍用 `create-desktop-shortcut.cmd` 重建。
+
 ## 现状
 
-v16 已在 Windows PowerShell 5.1 / PowerShell 7 跑核心、特性和静态自测，并用 Playwright + Edge mock 验证界面。真实 Claude 启动、目录隔离、回收站和窗口生命周期仍待实机验收；M1 / M3 保持待验收。`doctor` 与完整卸载仍未实现。
+v24 在 Windows PowerShell 5.1 / PowerShell 7 均通过核心 78/78、特性 26/26、运行管理 42/42；静态 15 文件、214 个 UI 键及 14 个原生窗口键一致。真实 EXE/WebView2 的 13 项、实际本地 HTTP 进度、自建无业务测试进程及原浏览器 mock 回归均通过。未启动真实 Claude，真实窗口聚焦/关闭、登录、隔离、回收站和生命周期仍待实机验收；M1 / M3 待验收。`doctor` 与完整卸载仍未实现。
 
-![v16 界面，示例数据](tests/evidence/v16/table-zh-light.png)
+![v23 界面，示例数据](tests/evidence/v23/runtime-zh-light.png)
 
 ## 开发验证
 
@@ -120,11 +158,12 @@ v16 已在 Windows PowerShell 5.1 / PowerShell 7 跑核心、特性和静态自�
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/Test-Core.ps1 -NoPause
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/Test-Features.ps1 -NoPause
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/Test-Runtime.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/Test-Static.ps1
 python docs/dev/tools/check_docs.py
 ```
 
-也可用 `pwsh` 运行上述 PowerShell 测试。特性测试需要本机已安装 Claude，以比较图标并在临时目录生成 `.lnk`，不会启动 Claude。可选 UI 测试需要 Node.js、Playwright 和 Edge：`node tests/Test-Ui.cjs tests/evidence/local`；全部请求 mock。运行启动器本身不需要这些开发依赖。
+也可用 `pwsh` 运行上述 PowerShell 测试。特性测试需要本机已安装 Claude，以比较图标并在临时目录生成 `.lnk`，不会启动 Claude。可选 UI 测试需要 Node.js、Playwright 和 Edge：`node tests/Test-Ui.cjs tests/evidence/local`；另运行 `node tests/Test-RuntimeUi.cjs tests/evidence/local-runtime` 验证新操作和实时分块进度；UI 操作为 mock。运行管理 PowerShell 自测使用系统 .NET C# 编译器生成临时无业务测试进程，不是 Claude。运行启动器本身不需要这些开发依赖。
 
 ## 非官方声明与使用边界
 
@@ -132,7 +171,7 @@ python docs/dev/tools/check_docs.py
 
 截至 2026-11-09 查阅的官方资料，尚未找到针对这种 Desktop 本地多实例启动方式的明确许可或专门禁令；不能据此直接认定违规，也不代表已获官方认可。实际使用仍须遵守适用的 Anthropic 条款及所在组织的要求。
 
-“Claude”名称用于说明兼容对象；桌面快捷方式复用用户本机已安装应用的图标，仓库不附带官方图标，也不将其用作项目 Logo。商标权属于 Anthropic，非官方声明与 MIT 许可证不构成品牌授权。依据、适用范围与尚未确认事项见 [政策说明](docs/POLICY_REVIEW.md)。
+“Claude”名称用于说明兼容对象；启动器使用原创灰色双窗口 Logo；只有 profile 快捷方式复用用户本机 Claude 原图标，仓库不附带官方图标，也不将其用作项目 Logo。商标权属于 Anthropic，非官方声明与 MIT 许可证不构成品牌授权。依据、适用范围与尚未确认事项见 [政策说明](docs/POLICY_REVIEW.md)。
 
 ## 致谢
 
@@ -148,4 +187,10 @@ MIT，见 [LICENSE](LICENSE)。
 
 ## English summary
 
-Manage desktop profiles for accounts you are authorized to use (e.g. work and personal). The launcher supplies `--user-data-dir`, `CLAUDE_CONFIG_DIR` and `CLAUDE_CODE_TMPDIR`; actual Desktop isolation is version-dependent and remains unverified. It does not modify or redistribute Claude, inspect credentials, write the registry, call Anthropic APIs, or send telemetry. Its UI communicates with a loopback-only local server. Do not use account rotation to evade restrictions or bans. This is an unofficial local launcher, not an Anthropic product or endorsement. The reviewed materials neither specifically authorize nor specifically prohibit this Desktop multi-instance method; this is not a guarantee of compliance. The Claude name identifies the compatible app, and shortcut icons are extracted locally rather than distributed or used as the project logo. Anthropic retains its trademark rights. See the dated [policy notes](docs/POLICY_REVIEW.md). Run `powershell -ExecutionPolicy Bypass -File .\claude-multi.ps1 help` for usage. Interface language follows your system (`lang auto|zh|en`). Known limits: `~/Claude/` is likely shared between profiles; `claude://` sign-in callbacks may land in another profile, so sign in one profile at a time; local Cowork (if your version still has it) may allow only one profile at a time.
+Manage desktop profiles for accounts you are authorized to use (e.g. work and personal). The launcher supplies `--user-data-dir`, `CLAUDE_CONFIG_DIR` and `CLAUDE_CODE_TMPDIR`; actual Desktop isolation is version-dependent and remains unverified. It does not modify or redistribute Claude, inspect credentials, write the registry, call Anthropic APIs, or send telemetry. Its UI communicates with a loopback-only local server. Do not use account rotation to evade restrictions or bans. This is an unofficial local launcher, not an Anthropic product or endorsement. The reviewed materials neither specifically authorize nor specifically prohibit this Desktop multi-instance method; this is not a guarantee of compliance. The Claude name identifies the compatible app, and the launcher has its own original gray icon; profile shortcut icons are extracted locally rather than distributed or used as the project logo. Anthropic retains its trademark rights. See the dated [policy notes](docs/POLICY_REVIEW.md). Run `powershell -ExecutionPolicy Bypass -File .\claude-multi.ps1 help` for usage. Interface language follows your system (`lang auto|zh|en`). Known limits: `~/Claude/` is likely shared between profiles; `claude://` sign-in callbacks may land in another profile, so sign in one profile at a time; local Cowork (if your version still has it) may allow only one profile at a time.
+
+## v24 内嵌窗口验证
+
+双 PowerShell：核心各 78/78、特性各 26/26、运行管理各 42/42；静态 15 个 PowerShell 文件、214 个 UI 翻译键和 14 个原生窗口键一致。真实 EXE/WebView2 冒烟 13 项通过，含真实后端、中英切换、深浅标题栏同色、原生窗口按钮和服务退出。详情见 `tests/evidence/v24/VALIDATION.md`。机器检查不等于人工验收，未启动或登录真实 Claude。
+
+开发时可在编译并安装 Playwright 后运行 `node tests/Test-Native.cjs tests/evidence/local-native`。仅测试子进程临时启用本机 CDP；配置/缓存独立，保留真实 Windows 环境变量。测试只打开/取消新建窗口，不创建实际 profile；目录创建由 PowerShell 沙箱另测。首次运行特性测试前也需先编译 EXE。
