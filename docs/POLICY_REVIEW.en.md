@@ -22,11 +22,11 @@ Owning or switching between authorized accounts is distinct from using accounts 
 
 ## Branding and distribution
 
-The name `claude-multi-launcher` / `Claude Multi Launcher` is retained to identify compatibility. Desktop shortcuts use an icon extracted from the user's installed Claude application. The repository does not distribute official icons or use them as the project logo, and it contains no Claude binaries, user configuration or credentials.
+The name `claude-multi-launcher` / `Claude Multi Launcher` is retained to identify compatibility. The launcher and README use an original gray overlapping-window icon. Only profile shortcuts use the unchanged icon extracted from the user's installed Claude application. The repository does not distribute official icons or use them as the project logo, and it contains no Claude binaries, user configuration or credentials.
 
 The README clearly identifies this as an unofficial community tool. That notice and the project's MIT license do not grant rights to Anthropic's trademarks or software. No specific branding authorization has been established, and that fact alone is not presented here as a finding of infringement.
 
-The user chose to retain the name and local shortcut icon. Obtaining written permission or changing the name/icon is not a prerequisite imposed by this packaging task. If Anthropic provides a specific requirement or the applicable terms change, reassess the implementation and documentation accordingly. This package does not claim official approval or guaranteed compliance and has not been uploaded to GitHub by this task.
+The user chose to retain the name, use an original launcher icon, and retain the locally extracted Claude icon for profile links. Obtaining written permission or changing the name/icon is not a prerequisite imposed by this packaging task. If Anthropic provides a specific requirement or the applicable terms change, reassess the implementation and documentation accordingly. This package does not claim official approval or guaranteed compliance and has not been uploaded to GitHub by this task.
 
 ## What the demo proves
 

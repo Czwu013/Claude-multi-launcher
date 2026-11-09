@@ -7,9 +7,9 @@
 | --- | --- | --- | --- | --- |
 | M1 核心 CLI | profiles.json、list/add/rename/remove/launch、中英双语、LICENSE 与合规 README | 待验收 | 第 2 轮 · 待你打分 | M1_core_cli.md |
 | M2 doctor | 体检、协议归属检测、脱敏报告 | 待做 | — | — |
-| M3 图形界面 | 本地网页管理窗口；v16 原图标、菜单删除与圆点排序 | 待验收 | 第 1 轮 · 待你打分 | M3_table_controls.md |
+| M3 图形界面 | v24 WebView2 EXE、原创启动器图标及同色标题栏；保留实例管理 | 待验收 | 第 3 轮 · 待你打分 | M3_table_controls.md |
 | M4 卸载与收尾 | 预览确认的卸载、快捷方式、合规总核对 | 待做 | — | — |
 
 ## 下一步
-M3 本轮三个反馈项已修改，待你在 `reviews/M3_r1.md` 验收。usage 和重置时间均未加入（D-027）。
+M3 本轮内嵌程序、图标分工及同色标题栏已修改，待你在 `reviews/M3_r3.md` 验收。usage 和重置时间均未加入（D-027）。
 M1 待用户在 Windows 上验收（见 `reviews/M1_r2.md`）。核心沙箱自测在 PowerShell 7 与 Windows PowerShell 5.1 均 78/78 通过；真实启动、目录隔离、快捷方式、回收站和生命周期仍待人工验收。未将任何里程碑标为完成。

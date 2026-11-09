@@ -180,11 +180,13 @@ function Get-CmlDefaultPaths {
 function Get-CmlSharedLocations {
     # Places that several profiles (or the default app) would silently share.
     $up = $env:USERPROFILE
+    $documents = [Environment]::GetFolderPath('MyDocuments','DoNotVerify')
+    if (-not $documents) { $documents = Join-Path $up 'Documents' }
     $list = @(
         (Join-Path $up '.claude'),
         (Join-Path $up 'Claude'),
         (Join-Path (Join-Path $up 'Documents') 'Claude'),
-        (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Claude'),
+        (Join-Path $documents 'Claude'),
         (Join-Path $env:APPDATA 'Claude'),
         (Join-Path $env:LOCALAPPDATA 'Claude'),
         (Join-Path $env:APPDATA 'Claude-3p'),
@@ -442,17 +444,23 @@ function Test-CmlOurShortcut {
 }
 
 function Get-CmlIconPath {
+    param([switch]$Refresh)
     # Reads the icon from the locally installed app; it is never shipped with this tool.
     $iconDir = Join-Path (Get-CmlHome) 'icons'
     $ico = Join-Path $iconDir 'claude.ico'
-    if (Test-Path -LiteralPath $ico) { return $ico }
+    if (-not $Refresh -and (Test-Path -LiteralPath $ico)) { return $ico }
     try {
         $exe = Resolve-CmlClaudeExe
         Add-Type -AssemblyName System.Drawing
         $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe.Path)
         if (-not (Test-Path -LiteralPath $iconDir)) { New-Item -ItemType Directory -Path $iconDir -Force | Out-Null }
-        $fs = [IO.File]::Create($ico)
+        $tempIcon = $ico + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+        $fs = [IO.File]::Create($tempIcon)
         try { $icon.Save($fs) } finally { $fs.Dispose(); $icon.Dispose() }
+        try {
+            if (Test-Path -LiteralPath $ico) { [IO.File]::Replace($tempIcon,$ico,[NullString]::Value) }
+            else { [IO.File]::Move($tempIcon,$ico) }
+        } finally { if (Test-Path -LiteralPath $tempIcon) { Remove-Item -LiteralPath $tempIcon -Force } }
         return $ico
     } catch {
         Write-CmlLine (Get-CmlText 'warn.icon_failed') 'Yellow'
@@ -476,7 +484,7 @@ function New-CmlShortcut {
         $sc.Arguments = ('-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{0}" launch "{1}" -FromShortcut' -f $entry, $Prof['name'])
         $sc.WorkingDirectory = $script:RepoRoot
         $sc.Description = ('Claude ({0}) - claude-multi-launcher (unofficial)' -f $Prof['name'])
-        $ico = Get-CmlIconPath
+        $ico = Get-CmlIconPath -Refresh
         if ($ico) { $sc.IconLocation = ($ico + ',0') } else { $sc.IconLocation = ($psExe + ',0') }
         $sc.Save()
         Write-CmlLine (Get-CmlText 'msg.shortcut_done' @($lnk)) 'Green'
@@ -502,7 +510,7 @@ function Update-CmlShortcut {
     param([string]$Name)
     $cfg = Read-CmlConfig
     $prof = Get-CmlProfileOrThrow $cfg $Name
-    [void](New-CmlShortcut $prof)
+    if (-not (New-CmlShortcut $prof)) { throw (Get-CmlText 'runtime.shortcut_failed') }
 }
 
 # ---------------------------------------------------------------- profile operations
@@ -539,8 +547,10 @@ function Add-CmlProfile {
         [string]$Note = '',
         [switch]$NoShortcut,
         [switch]$ReuseDefault,
-        [switch]$DryRun
+        [switch]$DryRun,
+        [scriptblock]$OnProgress
     )
+    Write-CmlProgress $OnProgress 'validate' 1 4
     if (-not (Test-CmlName $Name)) { throw (Get-CmlText 'err.name_invalid' @($Name)) }
     if ($ReuseDefault -and $DataDir) { throw (Get-CmlText 'err.reuse_conflict') }
     $cfg = Read-CmlConfig
@@ -568,6 +578,7 @@ function Add-CmlProfile {
     $viol = @(Test-CmlIsolation -Prof $prof -Others @($cfg['profiles']))
     if ($viol.Count -gt 0) { throw (New-CmlIsolationError $viol) }
 
+    Write-CmlProgress $OnProgress 'directories' 2 4
     $states = @{}
     if ($DryRun) {
         Write-CmlLine (Get-CmlText 'msg.dryrun_banner') 'Yellow'
@@ -589,6 +600,7 @@ function Add-CmlProfile {
                 $states[$k] = (Get-CmlText 'state.exists')
             }
         }
+        Write-CmlProgress $OnProgress 'save' 3 4
         $list = @($cfg['profiles'])
         $list += , $prof
         $cfg['profiles'] = $list
@@ -597,11 +609,12 @@ function Add-CmlProfile {
 
     Write-CmlLine (Get-CmlText 'msg.add_done' @($Name)) 'Green'
     Write-CmlProfileItems $prof $states
+    Write-CmlProgress $OnProgress 'shortcuts' 4 4
     if ($prof['shortcut']) {
         if ($DryRun) {
             Write-Host ('  {0}: {1}' -f (Get-CmlText 'item.shortcut'), (Get-CmlShortcutPath $Name))
         } else {
-            [void](New-CmlShortcut $prof)
+            if (-not (New-CmlShortcut $prof)) { throw (Get-CmlText 'runtime.create_partial') }
         }
     }
     if ($ReuseDefault) { Write-CmlLine (Get-CmlText 'msg.reuse_note') 'Cyan' }
@@ -723,6 +736,7 @@ function Get-CmlShortcutLabelMap {
 function Get-CmlProfileSummary {
     # Plain data about every profile, for the graphical window (no console output).
     $cfg = Read-CmlConfig
+    $runtime = Get-CmlRuntimeSnapshot -Config $cfg
     $labelMap = @{}
     try { $labelMap = Get-CmlShortcutLabelMap } catch { $labelMap = @{} }
     $out = @()
@@ -747,6 +761,8 @@ function Get-CmlProfileSummary {
                 Note          = [string]$p['note']
                 Violations    = $msgs
                 ShortcutLabel = $label
+                ProcessStatus = $runtime[$p['name']].Status
+                ProcessIds    = @($runtime[$p['name']].Processes | ForEach-Object { $_.ProcessId })
             })
     }
     return $out
@@ -959,76 +975,6 @@ function Get-CmlRunningClaudeCount {
         }
     } catch { }
     return $n
-}
-
-function Start-CmlProfile {
-    param(
-        [Parameter(Mandatory = $true)][string]$Name,
-        [switch]$ShowDialog
-    )
-    $cfg = Read-CmlConfig
-    $prof = Get-CmlProfileOrThrow $cfg $Name
-    $firstLaunch = -not [bool]$prof['launched']
-
-    $viol = @(Test-CmlIsolation -Prof $prof -Others @($cfg['profiles']))
-    if ($viol.Count -gt 0) { throw (New-CmlIsolationError $viol) }
-
-    $exe = Resolve-CmlClaudeExe
-    foreach ($k in @('dataDir', 'configDir', 'workspaceDir', 'tempDir')) {
-        [void](Initialize-CmlDirectory $prof[$k])
-    }
-
-    Write-Host (Get-CmlText 'msg.launch_start' @($prof['name']))
-    Write-Host (Get-CmlText 'msg.launch_exe' @($exe.Path, $exe.Source))
-
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $exe.Path
-    # Start through the shell, like a double-click: the app does not inherit this console,
-    # so its log output stays out of the terminal and closing the terminal does not close it.
-    # (CreateNoWindow with UseShellExecute=$false still inherits console handles.)
-    $psi.UseShellExecute = $true
-    $psi.WorkingDirectory = $prof['workspaceDir']
-    if (-not $prof['reuseDefault']) {
-        $psi.Arguments = ('--user-data-dir="{0}"' -f $prof['dataDir'])
-    }
-    $running = 0
-    if ($firstLaunch) { $running = Get-CmlRunningClaudeCount $exe.Path }
-    # ShellExecute cannot take an environment block, so set the variables on this process
-    # only for the instant of the launch, then restore them. Nothing is written to the system.
-    $envNames = @('CLAUDE_CONFIG_DIR', 'CLAUDE_CODE_TMPDIR')
-    $envNew = @{ 'CLAUDE_CONFIG_DIR' = $prof['configDir']; 'CLAUDE_CODE_TMPDIR' = $prof['tempDir'] }
-    $envOld = @{}
-    foreach ($n in $envNames) { $envOld[$n] = [Environment]::GetEnvironmentVariable($n, 'Process') }
-    try {
-        foreach ($n in $envNames) { [Environment]::SetEnvironmentVariable($n, $envNew[$n], 'Process') }
-        [void][System.Diagnostics.Process]::Start($psi)
-    } catch {
-        throw (Get-CmlText 'err.launch_failed' @($_.Exception.Message))
-    } finally {
-        foreach ($n in $envNames) { [Environment]::SetEnvironmentVariable($n, $envOld[$n], 'Process') }
-    }
-    Write-CmlLine (Get-CmlText 'msg.launch_ok') 'Green'
-    Write-Host (Get-CmlText 'msg.launch_dup')
-    Write-Host (Get-CmlText 'msg.shared_note')
-
-    if ($firstLaunch) {
-        $lines = @((Get-CmlText 'msg.first_launch'), (Get-CmlText 'msg.first_launch_tip'))
-        if ($running -gt 0) { $lines += (Get-CmlText 'msg.other_running' @($running)) }
-        Write-Host ''
-        foreach ($l in $lines) { Write-CmlLine $l 'Yellow' }
-        $marked = [ordered]@{}
-        foreach ($k in $prof.Keys) { $marked[$k] = $prof[$k] }
-        $marked['launched'] = $true
-        Set-CmlProfileRecord $cfg $marked $prof['name']
-        Write-CmlConfig $cfg
-        if ($ShowDialog) {
-            try {
-                Add-Type -AssemblyName System.Windows.Forms
-                $text = ($lines -join ([Environment]::NewLine + [Environment]::NewLine))
-                [void][System.Windows.Forms.MessageBox]::Show($text, 'claude-multi-launcher')
-            } catch { }
-        }
-    }
 }
 
 # ---------------------------------------------------------------- find and adopt existing clones
@@ -1276,7 +1222,7 @@ function Get-CmlRunningDataDirs {
             if ($cl -match '--type=') { continue }
             foreach ($d in (Get-CmlDataDirsFromText $cl)) { try { $out += (Resolve-CmlPath $d) } catch { } }
         }
-    } catch { }
+    } catch { throw (Get-CmlText 'runtime.query_failed') }
     return $out
 }
 
@@ -1369,6 +1315,9 @@ function Remove-CmlProfileData {
     Write-CmlLine (Get-CmlText 'purge.done' @($moved, $plan.Name)) 'Green'
 }
 
+. (Join-Path $PSScriptRoot 'CmlProcesses.ps1')
+. (Join-Path $PSScriptRoot 'CmlActions.ps1')
+
 Export-ModuleMember -Function @(
     'Get-CmlText', 'Get-CmlLang', 'Reset-CmlLanguageCache', 'Write-CmlHelp', 'Write-CmlLine',
     'Resolve-CmlPath', 'Get-CmlPathRelation', 'Test-CmlName', 'Get-CmlDefaultPaths',
@@ -1378,5 +1327,6 @@ Export-ModuleMember -Function @(
     'Resolve-CmlClaudeExe', 'Start-CmlProfile', 'Get-CmlProfileSummary', 'Get-CmlItemLabel',
     'Get-CmlDataDirsFromText', 'Get-CmlQuotedTokens', 'Find-CmlExistingClones', 'Show-CmlClones', 'Import-CmlProfile',
     'Get-CmlRemovalPlan', 'Remove-CmlProfileData', 'Get-CmlShortcutLabelMap',
-    'Set-CmlProfileOrder', 'Get-CmlIconPath'
+    'Set-CmlProfileOrder', 'Get-CmlIconPath', 'Get-CmlRuntimeSnapshot', 'Stop-CmlProfile',
+    'Get-CmlMcpConfigInfo', 'Open-CmlMcpConfig', 'Get-CmlRepairPlan', 'Repair-CmlShortcuts'
 )

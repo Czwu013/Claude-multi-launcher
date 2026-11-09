@@ -1,0 +1,16 @@
+{
+  "title": "Claude Multi Launcher",
+  "starting": "正在打开启动器…",
+  "runtime_missing": "未找到 Microsoft Edge WebView2 Runtime。请从微软安装 Evergreen 运行时后重开启动器。启动器不会打开 Edge / Chrome 浏览器。",
+  "startup_failed": "无法打开启动器。",
+  "server_missing": "请将 EXE 与 claude-multi-server.ps1、src、ui、assets 保存在同一目录。",
+  "server_timeout": "本地服务在 25 秒内未能启动。",
+  "server_closed": "本地服务已停止，请关闭此窗口后重开启动器。",
+  "dependencies_missing": "缺少 WebView2 组件。请完整解压便携版，或在源码目录运行 build-exe.cmd。",
+  "build_failed": "编译失败。请运行 build-exe.cmd 查看错误。",
+  "busy_close": "操作仍在进行，请等操作结束后再关闭启动器。",
+  "close_check_failed": "无法确认当前操作状态，请等操作结束后重试关闭。",
+  "minimize": "最小化",
+  "maximize": "最大化或还原",
+  "close": "关闭"
+}

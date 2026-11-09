@@ -1,0 +1,16 @@
+{
+  "title": "Claude Multi Launcher",
+  "starting": "Starting launcher…",
+  "runtime_missing": "Microsoft Edge WebView2 Runtime is missing. Install the Evergreen Runtime from Microsoft, then reopen this launcher. Edge / Chrome browser will not be opened.",
+  "startup_failed": "Could not open the launcher.",
+  "server_missing": "Keep the EXE together with claude-multi-server.ps1, src, ui and assets.",
+  "server_timeout": "The local service did not start within 25 seconds.",
+  "server_closed": "The local service stopped. Close this window and reopen the launcher.",
+  "dependencies_missing": "WebView2 components are missing. Extract the complete portable package, or run build-exe.cmd in the source folder.",
+  "build_failed": "Build failed. Run build-exe.cmd to see the error.",
+  "busy_close": "An operation is still running. Wait for it to finish before closing the launcher.",
+  "close_check_failed": "Could not check the current operation. Please retry closing after it finishes.",
+  "minimize": "Minimize",
+  "maximize": "Maximize or restore",
+  "close": "Close"
+}
